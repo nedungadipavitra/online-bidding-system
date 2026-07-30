@@ -14,3 +14,107 @@ npm-debug.log
 # OS
 Thumbs.db
 .DS_Store
+
+##############################################
+# IntelliJ IDEA
+##############################################
+*.iml
+out/
+
+##############################################
+# Eclipse / Spring Tool Suite
+##############################################
+.project
+.classpath
+.settings/
+.springBeans
+.sts4-cache/
+
+##############################################
+# Maven
+##############################################
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+##############################################
+# Gradle
+##############################################
+.gradle/
+build/
+
+##############################################
+# Logs
+##############################################
+logs/
+*.log.*
+hs_err_pid*
+replay_pid*
+
+##############################################
+# Java
+##############################################
+*.class
+*.jar
+*.war
+*.ear
+
+# Application Secrets
+application-local.properties
+application-dev.properties
+application-prod.properties
+application-secrets.properties
+
+# Exception: Allow force added application.properties in product/wallet service
+!backend/product-service/src/main/resources/application.properties
+!backend/wallet-service/src/main/resources/application.properties
+
+##############################################
+# Sensitive Keys & Certificates
+##############################################
+*.jks
+*.p12
+*.pem
+*.key
+*.crt
+*.keystore
+
+##############################################
+# Temporary Files
+##############################################
+*.tmp
+*.temp
+*.swp
+*.bak
+
+##############################################
+# Lombok
+##############################################
+lombok.config
+
+##############################################
+# Generated Reports
+##############################################
+dependency-reduced-pom.xml
+
+##############################################
+# Test Reports
+##############################################
+surefire-reports/
+failsafe-reports/
+
+##############################################
+# Coverage
+##############################################
+coverage/
+jacoco.exec
+/site/
+
+##############################################
+# Docker
+##############################################
+docker-compose.override.yml
+
+##############################################
+# Kubernetes
+##############################################
+*.kubeconfig

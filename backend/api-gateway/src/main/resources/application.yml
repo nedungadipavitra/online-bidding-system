@@ -1,0 +1,78 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+          routes:
+            - id: user-service-register-compat
+              uri: http://localhost:8081
+              predicates:
+                - Path=/register
+              filters:
+                - RewritePath=/register, /auth/register
+            - id: user-service-login-compat
+              uri: http://localhost:8081
+              predicates:
+                - Path=/login
+              filters:
+                - RewritePath=/login, /auth/login
+            - id: user-service-auth
+              uri: http://localhost:8081
+              predicates:
+                - Path=/auth/**
+            - id: user-service-users
+              uri: http://localhost:8081
+              predicates:
+                - Path=/users/**
+            - id: product-service-products
+              uri: http://localhost:8082
+              predicates:
+                - Path=/products/**
+            - id: product-service-categories
+              uri: http://localhost:8082
+              predicates:
+                - Path=/categories/**
+            - id: wallet-service-wallets
+              uri: http://localhost:8083
+              predicates:
+                - Path=/wallets/**
+            - id: wallet-service-transactions
+              uri: http://localhost:8083
+              predicates:
+                - Path=/transactions/**
+            - id: order-service
+              uri: http://localhost:8084
+              predicates:
+                - Path=/orders/**
+            - id: bid-service
+              uri: http://localhost:8085
+              predicates:
+                - Path=/bids/**
+            - id: bid-service-websocket
+              uri: http://localhost:8085
+              predicates:
+                - Path=/ws/**
+
+server:
+  port: 8080
+
+jwt:
+  secret: Z3V4aFJqSmVOUlVJbEZ2QzN3d0h0RkhzRWhWaVppcFVKaFVQMEVYeDliQjN0NQ==
+
+gateway:
+  public-endpoints: POST:/auth/login,POST:/auth/register,POST:/auth/refresh,POST:/auth/logout,POST:/login,POST:/register,GET:/products/**,GET:/categories/**
+  allowed-origins: http://localhost:5173,http://127.0.0.1:5173
+
+logging:
+  level:
+    org.springframework.cloud.gateway: TRACE
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: gateway

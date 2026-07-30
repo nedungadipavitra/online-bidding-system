@@ -1,0 +1,1 @@
+-- empty data.sql to start with no default wallets
