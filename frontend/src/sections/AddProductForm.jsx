@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "../components/Button";
 import add from "../assets/add.png";
+import { apiFetch, apiJson } from "../api/client";
 
 function AddProductForm({ onProductAdded }) {
   const [name, setName] = useState("");
@@ -11,6 +12,25 @@ function AddProductForm({ onProductAdded }) {
   const [endTime, setEndTime] = useState("");
   const [image, setImage] = useState("");
   const [dragActive, setDragActive] = useState(false);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+
+    apiJson("/categories")
+      .then((categoryData) => {
+        if (active) {
+          setCategories(categoryData);
+        }
+      })
+      .catch((error) => {
+        console.error("Error loading categories:", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -76,7 +96,7 @@ function AddProductForm({ onProductAdded }) {
     const loggedInUserId = sessionStorage.getItem("loggedInUserId");
 
     try {
-      const response = await fetch("http://localhost:8080/products", {
+      const response = await apiFetch("/products", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -90,7 +110,7 @@ function AddProductForm({ onProductAdded }) {
           auctionStartTime: startTime,
           auctionEndTime: endTime,
           sellerId: loggedInUserId ? Number(loggedInUserId) : null,
-          categoryId: 1 // Default category ID mapping
+          categoryId: Number(category)
         })
       });
 
@@ -119,7 +139,7 @@ function AddProductForm({ onProductAdded }) {
           } else {
             errorMessage = errJson.message || errJson.error || JSON.stringify(errJson) || errorMessage;
           }
-        } catch (e) {
+        } catch {
           errorMessage = errorText || errorMessage;
         }
         alert(errorMessage);
@@ -163,12 +183,9 @@ function AddProductForm({ onProductAdded }) {
                 required
               >
                 <option value="">Select Category</option>
-                <option value="Electronics">Electronics</option>
-                <option value="Vehicles">Vehicles</option>
-                <option value="Fashion">Fashion</option>
-                <option value="Collectibles">Collectibles</option>
-                <option value="Accessories">Accessories</option>
-                <option value="Audio">Audio</option>
+                {categories.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
               </select>
             </div>
 

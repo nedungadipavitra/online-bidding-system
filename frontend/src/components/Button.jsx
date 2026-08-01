@@ -1,4 +1,3 @@
-import React from "react";
 
 function Button({ color, logo, hover, text, navigate, path, onClick, type = "button" }) {
   return (

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "../api/client";
 
 function MyWallet({ role }) {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ function MyWallet({ role }) {
     if (!userId) return;
 
     try {
-      const walletRes = await fetch(`http://localhost:8080/wallets/user/${userId}`, {
+      const walletRes = await apiFetch(`/wallets/user/${userId}`, {
         headers: {
           "Authorization": token ? `Bearer ${token}` : ""
         }
@@ -20,7 +21,7 @@ function MyWallet({ role }) {
       if (walletRes.ok) {
         const walletData = await walletRes.json();
 
-        const txRes = await fetch(`http://localhost:8080/transactions/user/${userId}`, {
+        const txRes = await apiFetch(`/transactions/user/${userId}`, {
           headers: {
             "Authorization": token ? `Bearer ${token}` : ""
           }
@@ -28,8 +29,8 @@ function MyWallet({ role }) {
         const txData = txRes.ok ? await txRes.json() : [];
 
         const mappedTx = txData.map(tx => ({
-          type: tx.type === "DEPOSIT" ? "Deposit" : "Withdrawal",
-          amount: tx.type === "DEPOSIT" ? Number(tx.amount) : -Number(tx.amount),
+          type: tx.type === "DEPOSIT" ? "Deposit" : tx.type === "REFUND" ? "Refund" : "Withdrawal",
+          amount: tx.type === "DEPOSIT" || tx.type === "REFUND" ? Number(tx.amount) : -Number(tx.amount),
           date: new Date(tx.timestamp).toLocaleDateString("en-IN", {
             day: "numeric",
             month: "short",
@@ -54,6 +55,8 @@ function MyWallet({ role }) {
   };
 
   useEffect(() => {
+    // The callback performs external data loading and updates state after its async responses.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWallet();
   }, [role]);
 
@@ -66,7 +69,7 @@ function MyWallet({ role }) {
       if (!userId) return;
 
       try {
-        const response = await fetch(`http://localhost:8080/wallets/${userId}/deposit`, {
+        const response = await apiFetch(`/wallets/${userId}/deposit`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -1,36 +1,60 @@
-import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
+import { getAccessToken, getRefreshToken, getValidAccessToken, getWebSocketUrl } from "../api/client";
 
-    export const createWebSocketClient = (onMessageReceived, auctionId) => {
-  const token = sessionStorage.getItem("jwtToken") || sessionStorage.getItem("token") || "";
+export const createWebSocketClient = (onMessageReceived, auctionId) => {
+  const auctionIds = (Array.isArray(auctionId) ? auctionId : [auctionId])
+    .filter((id) => id !== undefined && id !== null)
+    .map((id) => String(id));
+  let stompClient = null;
+  let cancelled = false;
 
-  const stompClient = new Client({
-    brokerURL: "", // Leave blank because we are supplying a custom SockJS factory
-    webSocketFactory: () => new SockJS("http://localhost:8080/bids/ws"),
-    connectHeaders: token ? {
-      Authorization: `Bearer ${token}`
-    } : {},
+  if (auctionIds.length === 0) {
+    return () => {
+      cancelled = true;
+    };
+  }
+
+  if (!getAccessToken() && !getRefreshToken()) {
+    return () => {
+      cancelled = true;
+    };
+  }
+
+  stompClient = new Client({
+    brokerURL: getWebSocketUrl("/ws"),
+    connectHeaders: {},
+    beforeConnect: async () => {
+      const token = await getValidAccessToken();
+      if (cancelled || !token) {
+        throw new Error("No valid access token available for live bid updates");
+      }
+      // Resolve a fresh token for every initial connection and reconnect.
+      stompClient.connectHeaders = {
+        Authorization: `Bearer ${token}`
+      };
+    },
     debug: function (str) {
       console.log("[STOMP Debug] ", str);
     },
-    reconnectDelay: 5000, // Handle auto-reconnection after 5sec if drops
+    reconnectDelay: 5000,
     heartbeatIncoming: 4000,
     heartbeatOutgoing: 4000
   });
 
-  stompClient.onConnect = (frame) => {
+  stompClient.onConnect = () => {
     console.log("Connected to STOMP over WebSocket");
-    
-    // Subscribe to live bid updates for the specific auction
-    stompClient.subscribe(`/topic/auction/${auctionId}`, (message) => {
-      if (message.body) {
-        try {
-          const bidUpdate = JSON.parse(message.body);
-          onMessageReceived(bidUpdate);
-        } catch (error) {
-          console.error("Failed to parse live bid update message:", error);
+
+    auctionIds.forEach((id) => {
+      stompClient.subscribe(`/topic/auction/${id}`, (message) => {
+        if (message.body) {
+          try {
+            const bidUpdate = JSON.parse(message.body);
+            onMessageReceived(bidUpdate);
+          } catch (error) {
+            console.error("Failed to parse live bid update message:", error);
+          }
         }
-      }
+      });
     });
   };
 
@@ -47,7 +71,8 @@ import { Client } from "@stomp/stompjs";
 
   // Return unsubscribe/deactivate clean cleanup function
   return () => {
-    if (stompClient.active) {
+    cancelled = true;
+    if (stompClient?.active) {
       stompClient.deactivate();
       console.log("Deactivated STOMP connection client");
     }

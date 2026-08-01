@@ -53,7 +53,7 @@ online-bidding-system
 - React.js
 - Vite
 - Bootstrap
-- Axios
+- Fetch API through the centralized frontend API client
 - STOMP WebSocket
 
 ### Backend
@@ -65,6 +65,34 @@ online-bidding-system
 - REST APIs
 - WebSocket (STOMP)
 - JWT Authentication
+
+### Runtime configuration and secrets
+
+Backend services read credentials and security settings from environment variables. Copy [.env.example](.env.example) to `.env` for local reference, or export the variables directly before starting the services. The copied `.env` file is ignored by Git.
+
+Required variables:
+
+- `DB_PASSWORD` — MySQL password used by all services.
+- `JWT_SECRET` — Base64-encoded signing key containing at least 32 bytes, shared by the gateway and user service.
+- `WALLET_INTERNAL_TOKEN` — private token used only for trusted wallet settlement and wallet provisioning calls.
+
+Service URLs and `GATEWAY_ALLOWED_ORIGINS` can be overridden for deployment environments; local localhost defaults remain available for non-secret settings. Do not use the example placeholder values in production, and restrict direct access to internal service ports.
+
+### Local backend startup
+
+After creating and filling in the root `.env`, start all backend services from PowerShell with:
+
+```powershell
+.\start-backend.ps1
+```
+
+The script loads `.env`, opens each backend service in a separate PowerShell window, and starts the API gateway after a short delay. If PowerShell blocks local scripts, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-backend.ps1
+```
+
+The script uses Maven from `PATH`, `MAVEN_HOME`, or the local Maven distribution previously used for this repository.
 
 ### Database
 
@@ -107,6 +135,7 @@ online-bidding-system
 
 - Backend Documentation → `backend/README.md`
 - Frontend Documentation -> `frontend/README.md`
+- Implementation notes -> `IMPLEMENTATION_NOTES.md`
 
 ---
 

@@ -1,7 +1,8 @@
-import React from "react";
+import { useState } from "react";
 import iphone from "../assets/iphone.jpeg";
 import ActiveStatus from "./ActiveStatus";
 import SoldStatus from "./SoldStatus";
+import { apiFetch } from "../api/client";
 
 const fallbackProduct = {
   name: "iPhone 17 Pro",
@@ -13,8 +14,8 @@ const fallbackProduct = {
 };
 
 function ProductRow({ product = fallbackProduct, deliveryPartners = [], onAssignSuccess }) {
-  const [selectedPartnerId, setSelectedPartnerId] = React.useState("");
-  const [isAssigning, setIsAssigning] = React.useState(false);
+  const [selectedPartnerId, setSelectedPartnerId] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false);
 
   const handleAssign = async () => {
     if (!selectedPartnerId) {
@@ -26,7 +27,7 @@ function ProductRow({ product = fallbackProduct, deliveryPartners = [], onAssign
       const token = sessionStorage.getItem("token");
       let oId = product.orderId;
       if (!oId) {
-        const createRes = await fetch("http://localhost:8080/orders", {
+        const createRes = await apiFetch("/orders", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -48,7 +49,7 @@ function ProductRow({ product = fallbackProduct, deliveryPartners = [], onAssign
         }
       }
 
-      const assignRes = await fetch(`http://localhost:8080/orders/${oId}/assign-delivery`, {
+      const assignRes = await apiFetch(`/orders/${oId}/assign-delivery`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,7 +83,7 @@ function ProductRow({ product = fallbackProduct, deliveryPartners = [], onAssign
         hour: "2-digit",
         minute: "2-digit"
       });
-    } catch (e) {
+    } catch {
       return dateStr;
     }
   };
@@ -94,7 +95,7 @@ function ProductRow({ product = fallbackProduct, deliveryPartners = [], onAssign
     if (product.status === "SOLD") {
       return <SoldStatus />;
     }
-    if (product.status === "NOT_SOLD") {
+    if (product.status === "NOT_SOLD" || product.status === "UNSOLD") {
       return (
         <div
           style={{
@@ -109,6 +110,20 @@ function ProductRow({ product = fallbackProduct, deliveryPartners = [], onAssign
       );
     }
     if (product.status === "ACTIVE") {
+      if (product.startTime && new Date(product.startTime) > new Date()) {
+        return (
+          <div
+            style={{
+              backgroundColor: "#fff3cd",
+              color: "#664d03",
+              width: "max-content",
+            }}
+            className="rounded text-center fw-bold px-3 py-1"
+          >
+            UPCOMING
+          </div>
+        );
+      }
       if (isEnded) {
         if (hasBids) {
           return <SoldStatus />;
@@ -128,6 +143,34 @@ function ProductRow({ product = fallbackProduct, deliveryPartners = [], onAssign
         }
       }
       return <ActiveStatus />;
+    }
+    if (product.status === "UPCOMING") {
+      return (
+        <div
+          style={{
+            backgroundColor: "#fff3cd",
+            color: "#664d03",
+            width: "max-content",
+          }}
+          className="rounded text-center fw-bold px-3 py-1"
+        >
+          UPCOMING
+        </div>
+      );
+    }
+    if (product.status === "ENDED") {
+      return hasBids ? <SoldStatus /> : (
+        <div
+          style={{
+            backgroundColor: "#f8d7da",
+            color: "#721c24",
+            width: "max-content",
+          }}
+          className="rounded text-center fw-bold px-3 py-1"
+        >
+          NOT SOLD
+        </div>
+      );
     }
     return <ActiveStatus />;
   };

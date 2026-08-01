@@ -38,4 +38,5 @@ public class Wallet {
 
 	@Column(nullable = false)
 	private BigDecimal balance;
+
 }

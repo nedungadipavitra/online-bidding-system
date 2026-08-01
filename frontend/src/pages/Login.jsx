@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Navbar from "../components/Navbar";
 import Button from "../components/Button";
 import login from "../assets/login.png";
 import "../styles/Login.css";
+import { apiJson, decodeJwtPayload, saveAuthSession } from "../api/client";
 
 function Login() {
   const navigate = useNavigate();
@@ -18,55 +18,40 @@ function Login() {
     }
 
     try {
-      const response = await fetch("http://localhost:8080/auth/login", {
+      const data = await apiJson("/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
         body: JSON.stringify({ email, password })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const token = data.accessToken;
-        sessionStorage.setItem("token", token);
+      const tokenPayload = decodeJwtPayload(data.accessToken);
+      const userData = await apiJson(`/users/${tokenPayload.userId}`, {
+        headers: {
+          Authorization: `Bearer ${data.accessToken}`,
+        },
+      });
+      const user = {
+        id: tokenPayload.userId,
+        name: userData.name,
+        role: tokenPayload.role,
+      };
+      saveAuthSession({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user,
+      });
 
-        // Decode token to get userId and role
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const userId = payload.userId;
-        const role = payload.role;
-
-        // Fetch additional user details to get the user's name
-        const userResponse = await fetch(`http://localhost:8080/users/${userId}`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          sessionStorage.setItem("loggedInUserName", userData.name);
-          sessionStorage.setItem("loggedInUserRole", role);
-          sessionStorage.setItem("loggedInUserId", userId);
-
-          if (role === "ADMIN") {
-            navigate("/admin/dashboard");
-          } else if (role === "SELLER") {
-            navigate("/seller/dashboard");
-          } else if (role === "BUYER") {
-            navigate("/buyer/dashboard");
-          } else {
-            navigate("/delivery");
-          }
-        } else {
-          alert("Failed to fetch user details");
-        }
+      if (user.role === "ADMIN") {
+        navigate("/admin/dashboard");
+      } else if (user.role === "SELLER") {
+        navigate("/seller/dashboard");
+      } else if (user.role === "BUYER") {
+        navigate("/buyer/dashboard");
       } else {
-        alert("Invalid email or password");
+        navigate("/delivery");
       }
     } catch (error) {
       console.error("Login error:", error);
-      alert("Error connecting to server");
+      alert(error.status === 401 ? "Invalid email or password" : "Error connecting to server");
     }
   };
 

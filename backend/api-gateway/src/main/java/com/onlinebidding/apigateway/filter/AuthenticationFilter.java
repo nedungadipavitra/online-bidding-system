@@ -60,9 +60,19 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             }
 
             ServerHttpRequest mutatedRequest = request.mutate()
-                    .header("X-User-Id", String.valueOf(userId))
-                    .header("X-User-Role", role)
-                    .header("X-User-Email", email)
+                    .headers(headers -> {
+                        // Never forward client-supplied identity headers. These values must
+                        // come only from the verified JWT handled by this gateway.
+                        headers.remove("X-User-Id");
+                        headers.remove("X-User-Role");
+                        headers.remove("X-User-Email");
+                        // Internal service credentials must never be accepted from browsers
+                        // or forwarded through the public gateway.
+                        headers.remove("X-Internal-Service-Token");
+                        headers.set("X-User-Id", String.valueOf(userId));
+                        headers.set("X-User-Role", role);
+                        headers.set("X-User-Email", email);
+                    })
                     .build();
 
             return chain.filter(exchange.mutate().request(mutatedRequest).build());

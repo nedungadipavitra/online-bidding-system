@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import ProductCard from "../components/ProductCard";
 import ButtonOutlined from "../components/ButtonOutlined";
 import { getAuctions } from "../utils/db";
@@ -14,6 +14,8 @@ function ActiveAuction() {
   };
 
   useEffect(() => {
+    // The callback performs external data loading and updates state after its async responses.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAuctions();
   }, []);
 

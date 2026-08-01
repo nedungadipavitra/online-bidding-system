@@ -6,10 +6,12 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 @Repository
 public interface BidRepository extends JpaRepository<Bid, Long> {
     List<Bid> findByAuctionIdOrderByAmountDesc(Long auctionId);
     Optional<Bid> findFirstByAuctionIdOrderByAmountDesc(Long auctionId);
+    List<Bid> findByAuctionIdInOrderByAuctionIdAscAmountDesc(Collection<Long> auctionIds);
     List<Bid> findByBidderIdOrderByBidTimeDesc(Long bidderId);
 }

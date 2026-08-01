@@ -1,104 +1,50 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiFetch, apiJson } from "../api/client";
+import { createRequestCache } from "../api/resources";
 
 function DeliveryDashboard() {
   const navigate = useNavigate();
   const [deliveries, setDeliveries] = useState([]);
   const loggedInUserId = sessionStorage.getItem("loggedInUserId");
 
-  const loadDeliveries = async () => {
+  const loadDeliveries = useCallback(async () => {
     if (!loggedInUserId) return;
     try {
-      const token = sessionStorage.getItem("token");
-      const response = await fetch(`http://localhost:8080/orders/delivery/${loggedInUserId}`, {
-        headers: {
-          "Authorization": token ? `Bearer ${token}` : ""
-        }
-      });
-      if (response.ok) {
-        const dbOrders = await response.json();
-        const mapped = await Promise.all(dbOrders.map(async (order) => {
-          let productName = "Product";
-          let buyerName = "Buyer";
-          let sellerName = "Seller";
+      const dbOrders = await apiJson(`/orders/delivery/${loggedInUserId}`);
+      const requestCache = createRequestCache();
+      const mapped = await Promise.all(dbOrders.map(async (order) => {
+        const [product, buyer, seller] = await Promise.all([
+          requestCache.getProduct(order.productId).catch(() => null),
+          requestCache.getUser(order.buyerId).catch(() => null),
+          requestCache.getUser(order.sellerId).catch(() => null)
+        ]);
 
-          // Fetch product
-          try {
-            const prodRes = await fetch(`http://localhost:8080/products/${order.productId}`, {
-              headers: {
-                "Authorization": token ? `Bearer ${token}` : ""
-              }
-            });
-            if (prodRes.ok) {
-              const prodData = await prodRes.json();
-              if (prodData) {
-                productName = prodData.name;
-              }
-            }
-          } catch (e) {
-            console.error(e);
-          }
-
-          // Fetch buyer
-          try {
-            const buyerRes = await fetch(`http://localhost:8080/users/${order.buyerId}`, {
-              headers: {
-                "Authorization": token ? `Bearer ${token}` : ""
-              }
-            });
-            if (buyerRes.ok) {
-              const buyerData = await buyerRes.json();
-              if (buyerData) {
-                buyerName = buyerData.name;
-              }
-            }
-          } catch (e) {
-            console.error(e);
-          }
-
-          // Fetch seller
-          try {
-            const sellerRes = await fetch(`http://localhost:8080/users/${order.sellerId}`, {
-              headers: {
-                "Authorization": token ? `Bearer ${token}` : ""
-              }
-            });
-            if (sellerRes.ok) {
-              const sellerData = await sellerRes.json();
-              if (sellerData) {
-                sellerName = sellerData.name;
-              }
-            }
-          } catch (e) {
-            console.error(e);
-          }
-
-          return {
-            id: order.id,
-            productName,
-            buyerName,
-            sellerName,
-            price: order.finalPrice,
-            status: order.status || order.deliveryStatus || "ASSIGNED"
-          };
-        }));
-        setDeliveries(mapped);
-      }
+        return {
+          id: order.id,
+          productName: product?.name || "Product",
+          buyerName: buyer?.name || "Buyer",
+          sellerName: seller?.name || "Seller",
+          price: order.finalPrice,
+          status: order.status || order.deliveryStatus || "ASSIGNED"
+        };
+      }));
+      setDeliveries(mapped);
     } catch (error) {
       console.error("Error loading deliveries:", error);
     }
-  };
+  }, [loggedInUserId]);
 
   useEffect(() => {
+    // The callback performs external data loading and updates state after its async responses.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadDeliveries();
-    const interval = setInterval(loadDeliveries, 5000);
-    return () => clearInterval(interval);
-  }, [loggedInUserId]);
+  }, [loadDeliveries]);
 
   const updateStatus = async (orderId, newStatus) => {
     try {
       const token = sessionStorage.getItem("token");
-      const res = await fetch(`http://localhost:8080/orders/${orderId}/status`, {
+      const res = await apiFetch(`/orders/${orderId}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

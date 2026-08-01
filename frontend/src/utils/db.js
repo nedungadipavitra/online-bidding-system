@@ -13,104 +13,6 @@ const imageMap = {
 };
 
 const defaultAuctions = [];
-const unusedDefaultAuctions = [
-  {
-    id: "iphone_17",
-    name: "iPhone 17 Pro",
-    category: "Electronics",
-    basePrice: 70000,
-    currentBid: 85250,
-    description: "The iPhone 17 Pro pushes the boundaries of what is possible on a smartphone. Featuring a next-generation A19 Bionic chip, an exceptional new Center Stage front camera, and a titanium alloy frame. The advanced triple-lens camera system delivers unmatched low-light performance and cinematic recording.",
-    features: [
-      "A19 Bionic Chip (3nm architecture)",
-      "6.7-inch Super Retina XDR OLED Display (120Hz)",
-      "Triple-lens 48MP Pro Camera System",
-      "Center Stage 24MP Front Camera",
-      "Titanium Alloy Design with Ceramic Shield"
-    ],
-    image: "iphone.jpeg",
-    endTime: "2026-08-30T22:00",
-    status: "ACTIVE",
-    seller: "Apple Authorized Store"
-  },
-  {
-    id: "rolex_watch",
-    name: "Vintage Rolex Submariner",
-    category: "Fashion",
-    basePrice: 450000,
-    currentBid: 510000,
-    description: "An exquisite vintage Rolex Submariner reference 16610. Known for its rugged reliability and classic style, this legendary dive watch features a black dial, Oyster steel bracelet, and unidirectional rotating bezel. Kept in pristine collector condition.",
-    features: [
-      "Oystersteel bracelet and case",
-      "Calibre 3135 Automatic Movement",
-      "Waterproof up to 300 meters (1000 feet)",
-      "Pristine condition with original box & papers",
-      "Unidirectional rotatable bezel"
-    ],
-    image: "rolex.png",
-    endTime: "2026-07-28T18:00",
-    status: "ACTIVE",
-    seller: "Heritage Horology"
-  },
-  {
-    id: "ps6_console",
-    name: "PlayStation 6 Console",
-    category: "Electronics",
-    basePrice: 45000,
-    currentBid: 58000,
-    description: "Experience next-level gaming with the brand new PlayStation 6. Introducing ultra-high-speed SSD, deeper immersion with support for haptic feedback, adaptive triggers, and 3D Audio, and an all-new generation of incredible PlayStation games.",
-    features: [
-      "Ultra-High-Speed 2TB SSD",
-      "8K Ultra HD Resolution support",
-      "Next-gen Ray Tracing 2.0 technology",
-      "DualSense Edge Pro controller included",
-      "Backward compatibility with PS4 and PS5 games"
-    ],
-    image: "ps6.png",
-    endTime: "2026-07-20T12:00",
-    status: "ACTIVE",
-    seller: "GameZone Retail"
-  },
-  {
-    id: "tesla_model_s",
-    name: "Tesla Model S Toy Edition",
-    category: "Collectibles",
-    basePrice: 5000,
-    currentBid: 6200,
-    description: "A rare collector's edition 1:18 scale diecast model of the Tesla Model S Plaid. Crafted with meticulously detailed interior, working steering wheel, opening doors, trunk, and hood. Finished in signature Tesla Solid Black paint.",
-    features: [
-      "1:18 Scale Precision Diecast Metal",
-      "Functional steering wheel and suspension",
-      "Detailed interior replication and battery pack layout",
-      "Signature Tesla Solid Black glossy finish",
-      "Collector's certificate of authenticity included"
-    ],
-    image: "tesla.png",
-    endTime: "2026-05-15T20:00",
-    status: "ACTIVE",
-    seller: "Diecast Emporium"
-  },
-  {
-    id: "macbook_pro",
-    name: "MacBook Pro M5 Max",
-    category: "Electronics",
-    basePrice: 180000,
-    currentBid: 215000,
-    description: "The peak of portable performance. Powered by the M5 Max chip with a 16-core CPU and 40-core GPU, 64GB unified memory, and 2TB high speed SSD. Features the stunning Liquid Retina XDR display with ProMotion and extreme battery life.",
-    features: [
-      "Apple M5 Max Chip with 16-core CPU, 40-core GPU",
-      "64GB Unified Memory (RAM)",
-      "2TB super-fast SSD Storage",
-      "16-inch Liquid Retina XDR Display",
-      "Studio-quality three-mic array and six-speaker sound"
-    ],
-    image: "macbook.png",
-    endTime: "2026-07-25T10:00",
-    status: "ACTIVE",
-    seller: "Apex Devices"
-  }
-];
-
 const defaultDeliveries = [
   {
     id: "DLV-9018",
@@ -434,17 +336,6 @@ export function getOrders() {
 }
 
 const defaultUsers = [];
-const unusedDefaultUsers = [
-  { id: "USR-001", name: "Admin User", email: "admin@mail.com", password: "admin123", role: "ADMIN" },
-  { id: "USR-002", name: "Amit Kumar", email: "amit@mail.com", password: "password123", role: "BUYER" },
-  { id: "USR-003", name: "Priya Sharma", email: "priya@mail.com", password: "password123", role: "BUYER" },
-  { id: "USR-004", name: "Siddharth R.", email: "siddharth@mail.com", password: "password123", role: "BUYER" },
-  { id: "USR-005", name: "Heritage Horology", email: "heritage@mail.com", password: "password123", role: "SELLER" },
-  { id: "USR-006", name: "GameZone Retail", email: "gamezone@mail.com", password: "password123", role: "SELLER" },
-  { id: "USR-007", name: "Ramesh Kumar", email: "ramesh@mail.com", password: "password123", role: "DELIVERY" },
-  { id: "USR-008", name: "Suresh Yadav", email: "suresh@mail.com", password: "password123", role: "DELIVERY" }
-];
-
 const defaultBids = [
   { id: "BID-001", productId: "iphone_17", productName: "iPhone 17 Pro", bidderName: "Amit Kumar", bidAmount: 85250, bidTime: "2026-07-28T14:30" },
   { id: "BID-002", productId: "rolex_watch", productName: "Vintage Rolex Submariner", bidderName: "Priya Sharma", bidAmount: 510000, bidTime: "2026-07-28T15:00" },

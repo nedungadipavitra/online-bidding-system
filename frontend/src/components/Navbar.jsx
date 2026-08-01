@@ -1,27 +1,31 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { apiFetch, clearAuthSession, getRefreshToken } from "../api/client";
 
 function Navbar() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [user, setUser] = useState(null);
+  useLocation();
   const [isOpen, setIsOpen] = useState(false);
 
-  useEffect(() => {
+  const user = (() => {
     const name = sessionStorage.getItem("loggedInUserName");
     const role = sessionStorage.getItem("loggedInUserRole");
-    if (name && role) {
-      setUser({ name, role });
-    } else {
-      setUser(null);
-    }
-    setIsOpen(false); // Close mobile menu on page navigation
-  }, [location]);
+    return name && role ? { name, role } : null;
+  })();
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("loggedInUserName");
-    sessionStorage.removeItem("loggedInUserRole");
-    setUser(null);
+  const handleLogout = async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await apiFetch("/auth/logout", {
+          method: "POST",
+          body: JSON.stringify({ refreshToken }),
+        });
+      } catch (error) {
+        console.error("Logout request failed:", error);
+      }
+    }
+    clearAuthSession();
     navigate("/");
   };
 

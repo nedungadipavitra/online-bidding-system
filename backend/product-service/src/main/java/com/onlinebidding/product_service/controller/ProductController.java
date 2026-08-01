@@ -22,6 +22,8 @@ import com.onlinebidding.product_service.service.ProductService;
 
 import jakarta.validation.Valid;
 
+import java.util.Objects;
+
 @RestController
 @RequestMapping("/products")
 public class ProductController {
@@ -44,32 +46,54 @@ public class ProductController {
 	}
 
 	@PostMapping
-	public ResponseEntity<ProductDto> addProduct(
-			@RequestHeader(value = "X-User-Role", required = false) String role,
-			@RequestBody @Valid ProductDto newProduct) {
-		if (role == null || !"SELLER".equalsIgnoreCase(role)) {
-			throw new AccessDeniedException("Access denied. Only SELLER can create products.");
-		}
-		return new ResponseEntity<>(productService.addProduct(newProduct), HttpStatus.CREATED);
+    public ResponseEntity<ProductDto> addProduct(
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody @Valid ProductDto newProduct) {
+        if (role == null || !"SELLER".equalsIgnoreCase(role) || userId == null) {
+            throw new AccessDeniedException("Access denied. Only SELLER can create products.");
+        }
+        // The authenticated gateway identity is authoritative; do not trust a sellerId
+        // supplied by the browser.
+        newProduct.setSellerId(userId);
+        return new ResponseEntity<>(productService.addProduct(newProduct), HttpStatus.CREATED);
 	}
 
 	@PatchMapping
-	public ResponseEntity<ProductDto> updateProduct(
-			@RequestHeader(value = "X-User-Role", required = false) String role,
-			@RequestBody @Valid ProductDto updatedProduct) {
-		if (role == null || (!"SELLER".equalsIgnoreCase(role) && !"ADMIN".equalsIgnoreCase(role))) {
-			throw new AccessDeniedException("Access denied. Only SELLER or ADMIN can update products.");
-		}
+    public ResponseEntity<ProductDto> updateProduct(
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody @Valid ProductDto updatedProduct) {
+        if (updatedProduct.getProductId() == null) {
+            throw new IllegalArgumentException("Product ID is required for updates.");
+        }
+        ProductDto existingProduct = productService.getProductById(updatedProduct.getProductId());
+        boolean canUpdate = "ADMIN".equalsIgnoreCase(role)
+                || ("SELLER".equalsIgnoreCase(role)
+                && userId != null
+                && Objects.equals(userId, existingProduct.getSellerId()));
+        if (!canUpdate) {
+            throw new AccessDeniedException("Access denied. Only SELLER or ADMIN can update products.");
+        }
+		// The current highest bid is owned by the bidding workflow, not by product
+		// administration. Ignore any client-supplied value during product edits.
+		updatedProduct.setCurrentHighestBid(existingProduct.getCurrentHighestBid());
 		return ResponseEntity.ok(productService.updateProduct(updatedProduct));
 	}
 
 	@DeleteMapping("/{productId}")
-	public ResponseEntity<String> deleteProductById(
-			@RequestHeader(value = "X-User-Role", required = false) String role,
-			@PathVariable("productId") Long id) {
-		if (role == null || (!"SELLER".equalsIgnoreCase(role) && !"ADMIN".equalsIgnoreCase(role))) {
-			throw new AccessDeniedException("Access denied. Only SELLER or ADMIN can delete products.");
-		}
+    public ResponseEntity<String> deleteProductById(
+            @RequestHeader(value = "X-User-Role", required = false) String role,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @PathVariable("productId") Long id) {
+        ProductDto existingProduct = productService.getProductById(id);
+        boolean canDelete = "ADMIN".equalsIgnoreCase(role)
+                || ("SELLER".equalsIgnoreCase(role)
+                && userId != null
+                && Objects.equals(userId, existingProduct.getSellerId()));
+        if (!canDelete) {
+            throw new AccessDeniedException("Access denied. Only SELLER or ADMIN can delete products.");
+        }
 		productService.deleteProductById(id);
 		return ResponseEntity.ok("Product has been deleted.");
 	}

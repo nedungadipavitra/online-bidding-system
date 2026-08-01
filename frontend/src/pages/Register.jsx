@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Navbar from "../components/Navbar";
 import Button from "../components/Button";
 import register from "../assets/register.png";
 import "../styles/Register.css";
+import { apiJson } from "../api/client";
 
 function Register() {
   const navigate = useNavigate();
@@ -23,35 +23,21 @@ function Register() {
     }
 
     try {
-      const response = await fetch("http://localhost:8080/auth/register", {
+      await apiJson("/auth/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
         body: JSON.stringify({ name, email, password, role })
       });
 
-      if (response.ok) {
-        alert("Registration Successful!");
-        navigate("/login");
-      } else {
-        const errorText = await response.text();
-        let errorMessage = "Registration failed";
-        try {
-          const errJson = JSON.parse(errorText);
-          if (errJson.errors && Array.isArray(errJson.errors)) {
-            errorMessage = errJson.errors.map(err => err.defaultMessage || JSON.stringify(err)).join(", ");
-          } else {
-            errorMessage = errJson.message || errJson.error || JSON.stringify(errJson) || errorMessage;
-          }
-        } catch (e) {
-          errorMessage = errorText || errorMessage;
-        }
-        alert(errorMessage);
-      }
+      alert("Registration Successful!");
+      navigate("/login");
     } catch (error) {
       console.error("Registration error:", error);
-      alert("Error connecting to server: " + error.message);
+      const body = error.responseBody;
+      const validationErrors = body?.errors;
+      const errorMessage = Array.isArray(validationErrors)
+        ? validationErrors.map((item) => item.defaultMessage || JSON.stringify(item)).join(", ")
+        : body?.message || error.message || "Registration failed";
+      alert(errorMessage);
     }
   };
 

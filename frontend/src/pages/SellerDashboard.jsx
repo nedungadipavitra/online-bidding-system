@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import AddProductForm from "../sections/AddProductForm";
 import MyProducts from "../sections/MyProducts";
 
