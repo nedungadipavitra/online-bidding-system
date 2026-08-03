@@ -23,7 +23,7 @@ A cloud-ready, real-time online auction platform built using **Spring Boot Micro
 
 ---
 
-##  Repository Structure
+## Repository Structure
 
 ```
 online-bidding-system
@@ -94,6 +94,14 @@ powershell -ExecutionPolicy Bypass -File .\start-backend.ps1
 
 The script uses Maven from `PATH`, `MAVEN_HOME`, or the local Maven distribution previously used for this repository.
 
+### To Stop the Backend
+
+Paste this command on any powershell window to stop the backend, then manually close all the opened terminals.
+
+```powershell
+8080..8085 | % { Get-NetTCPConnection -LocalPort $_ -EA SilentlyContinue | Select -Expand OwningProcess -Unique | % { Stop-Process -Id $_ -Force } }
+```
+
 ### Database
 
 - MySQL
@@ -123,7 +131,7 @@ The script uses Maven from `PATH`, `MAVEN_HOME`, or the local Maven distribution
 
 ---
 
-##  Team
+## Team
 
 - Ayush Sarbariya
 - Tejas Bayaskar
@@ -131,7 +139,7 @@ The script uses Maven from `PATH`, `MAVEN_HOME`, or the local Maven distribution
 
 ---
 
-##  Documentation
+## Documentation
 
 - Backend Documentation → `backend/README.md`
 - Frontend Documentation -> `frontend/README.md`
@@ -139,16 +147,18 @@ The script uses Maven from `PATH`, `MAVEN_HOME`, or the local Maven distribution
 
 ---
 
-##  Future Enhancements
+## Future Enhancements
+
 - AI Price Recommendation
 - AI Chatbot
 - Fraud Detection
 - Smart Product Search
 - Analytics Dashboard
 - Payment Gateway Integration
+
 ---
 
-##  Highlights
+## Highlights
 
 - Microservices Architecture
 - Cloud Native Design
