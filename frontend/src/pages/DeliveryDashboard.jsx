@@ -1,15 +1,23 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch, apiJson } from "../api/client";
+import { toast } from "react-toastify";
+import LoadingState from "../components/LoadingState";
+import { apiFetch, apiJson, getResponseMessage } from "../api/client";
 import { createRequestCache } from "../api/resources";
 
 function DeliveryDashboard() {
   const navigate = useNavigate();
   const [deliveries, setDeliveries] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [updatingOrderId, setUpdatingOrderId] = useState(null);
   const loggedInUserId = sessionStorage.getItem("loggedInUserId");
 
   const loadDeliveries = useCallback(async () => {
-    if (!loggedInUserId) return;
+    if (!loggedInUserId) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
     try {
       const dbOrders = await apiJson(`/orders/delivery/${loggedInUserId}`);
       const requestCache = createRequestCache();
@@ -32,6 +40,9 @@ function DeliveryDashboard() {
       setDeliveries(mapped);
     } catch (error) {
       console.error("Error loading deliveries:", error);
+      toast.error("Unable to load assigned deliveries.");
+    } finally {
+      setIsLoading(false);
     }
   }, [loggedInUserId]);
 
@@ -42,6 +53,7 @@ function DeliveryDashboard() {
   }, [loadDeliveries]);
 
   const updateStatus = async (orderId, newStatus) => {
+    setUpdatingOrderId(orderId);
     try {
       const token = sessionStorage.getItem("token");
       const res = await apiFetch(`/orders/${orderId}/status`, {
@@ -53,15 +65,16 @@ function DeliveryDashboard() {
         body: JSON.stringify({ status: newStatus })
       });
       if (res.ok) {
-        alert(`Order status updated to ${newStatus}`);
-        loadDeliveries();
+        toast.success(`Order status updated to ${newStatus}.`);
+        await loadDeliveries();
       } else {
-        const errorData = await res.json();
-        alert(errorData.message || "Failed to update status");
+        toast.error(await getResponseMessage(res, "Failed to update status."));
       }
     } catch (e) {
       console.error(e);
-      alert("Error updating order status");
+      toast.error("Error updating order status.");
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -69,14 +82,14 @@ function DeliveryDashboard() {
     const status = delivery.status.toUpperCase();
     if (status === "ASSIGNED") {
       return (
-        <button className="btn btn-outline-primary btn-sm" onClick={() => updateStatus(delivery.id, "DISPATCHED")}>
-          Dispatch Order
+        <button className="btn btn-outline-primary btn-sm" onClick={() => updateStatus(delivery.id, "DISPATCHED")} disabled={updatingOrderId === delivery.id}>
+          {updatingOrderId === delivery.id ? "Updating..." : "Dispatch Order"}
         </button>
       );
     } else if (status === "DISPATCHED" || status === "OUT_FOR_DELIVERY") {
       return (
-        <button className="btn btn-outline-success btn-sm" onClick={() => updateStatus(delivery.id, "DELIVERED")}>
-          Mark Delivered
+        <button className="btn btn-outline-success btn-sm" onClick={() => updateStatus(delivery.id, "DELIVERED")} disabled={updatingOrderId === delivery.id}>
+          {updatingOrderId === delivery.id ? "Updating..." : "Mark Delivered"}
         </button>
       );
     } else if (status === "DELIVERED") {
@@ -116,7 +129,13 @@ function DeliveryDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {deliveries.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="7">
+                      <LoadingState message="Loading deliveries..." compact />
+                    </td>
+                  </tr>
+                ) : deliveries.length === 0 ? (
                   <tr>
                     <td colSpan="7" className="text-center py-5 text-muted">No assigned deliveries found.</td>
                   </tr>

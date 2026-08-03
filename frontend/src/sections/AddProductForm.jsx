@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import Button from "../components/Button";
 import add from "../assets/add.png";
-import { apiFetch, apiJson } from "../api/client";
+import { apiFetch, apiJson, getResponseMessage } from "../api/client";
 
 function AddProductForm({ onProductAdded }) {
   const [name, setName] = useState("");
@@ -13,6 +14,7 @@ function AddProductForm({ onProductAdded }) {
   const [image, setImage] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -25,6 +27,7 @@ function AddProductForm({ onProductAdded }) {
       })
       .catch((error) => {
         console.error("Error loading categories:", error);
+        toast.error("Unable to load product categories.");
       });
 
     return () => {
@@ -59,7 +62,7 @@ function AddProductForm({ onProductAdded }) {
 
   const handleFile = (file) => {
     if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file.");
+      toast.error("Please upload an image file.");
       return;
     }
     const reader = new FileReader();
@@ -77,24 +80,25 @@ function AddProductForm({ onProductAdded }) {
     e.preventDefault();
 
     if (!name || !category || !basePrice || !description || !startTime || !endTime) {
-      alert("Please fill in all fields.");
+      toast.error("Please fill in all fields.");
       return;
     }
 
     const price = Number(basePrice);
     if (isNaN(price) || price <= 0) {
-      alert("Base price must be a positive number.");
+      toast.error("Base price must be a positive number.");
       return;
     }
 
     if (new Date(startTime) >= new Date(endTime)) {
-      alert("Auction Start Time must be before Auction End Time.");
+      toast.error("Auction start time must be before auction end time.");
       return;
     }
 
     const token = sessionStorage.getItem("token");
     const loggedInUserId = sessionStorage.getItem("loggedInUserId");
 
+    setIsSubmitting(true);
     try {
       const response = await apiFetch("/products", {
         method: "POST",
@@ -115,7 +119,7 @@ function AddProductForm({ onProductAdded }) {
       });
 
       if (response.ok) {
-        alert("Product added successfully for auction!");
+        toast.success("Product added successfully for auction.");
         // Reset Form
         setName("");
         setCategory("");
@@ -130,23 +134,13 @@ function AddProductForm({ onProductAdded }) {
           onProductAdded();
         }
       } else {
-        const errorText = await response.text();
-        let errorMessage = "Failed to add product";
-        try {
-          const errJson = JSON.parse(errorText);
-          if (errJson.errors && Array.isArray(errJson.errors)) {
-            errorMessage = errJson.errors.map(err => err.defaultMessage || JSON.stringify(err)).join(", ");
-          } else {
-            errorMessage = errJson.message || errJson.error || JSON.stringify(errJson) || errorMessage;
-          }
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        alert(errorMessage);
+        toast.error(await getResponseMessage(response, "Failed to add product."));
       }
     } catch (error) {
       console.error("Add product error:", error);
-      alert("Error connecting to server: " + error.message);
+      toast.error(error.message || "Error connecting to server.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -317,6 +311,8 @@ function AddProductForm({ onProductAdded }) {
               hover={"green"}
               text={"Add Product"}
               type="submit"
+              loading={isSubmitting}
+              loadingText="Adding..."
             />
           </div>
         </div>

@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { apiFetch } from "../api/client";
+import { toast } from "react-toastify";
+import { apiFetch, getResponseMessage } from "../api/client";
 import { createRequestCache } from "../api/resources";
+import { useConfirm } from "../components/confirmContext";
+import ReloadButton from "../components/ReloadButton";
 import AdminStatsCards from "../components/admin/AdminStatsCards";
 import AdminTabs from "../components/admin/AdminTabs";
 import AdminEditForms from "../components/admin/AdminEditForms";
@@ -14,6 +17,14 @@ function AdminDashboard() {
   const [bids, setBids] = useState([]);
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isCategorySaving, setIsCategorySaving] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState(null);
+  const [isUserSaving, setIsUserSaving] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState(null);
+  const [isProductSaving, setIsProductSaving] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState(null);
+  const confirm = useConfirm();
   
   // Navigation State
   const [activeView, setActiveView] = useState("categories");
@@ -38,6 +49,7 @@ function AdminDashboard() {
 
   // Load dynamic data from DB
   const loadData = useCallback(async () => {
+    setIsLoadingData(true);
     const token = sessionStorage.getItem("token");
     const requestCache = createRequestCache();
 
@@ -174,6 +186,7 @@ function AdminDashboard() {
     } catch (e) {
       console.error("Error loading orders in admin:", e);
     }
+    setIsLoadingData(false);
   }, []);
 
   useEffect(() => {
@@ -186,13 +199,14 @@ function AdminDashboard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim() || !description.trim()) {
-      alert("Please fill in both Category Name and Description.");
+      toast.error("Please fill in both category name and description.");
       return;
     }
 
     const token = sessionStorage.getItem("token");
     const isEditing = editingId !== null;
 
+    setIsCategorySaving(true);
     try {
       const response = await apiFetch(
         isEditing ? `/categories/${editingId}` : "/categories",
@@ -210,17 +224,18 @@ function AdminDashboard() {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        alert(errorData.message || errorData.error || "Failed to save category.");
+        toast.error(await getResponseMessage(response, "Failed to save category."));
         return;
       }
 
-      alert(isEditing ? "Category updated successfully!" : "Category added successfully!");
+      toast.success(isEditing ? "Category updated successfully." : "Category added successfully.");
       handleCancelEdit();
       await loadData();
     } catch (error) {
       console.error("Category save error:", error);
-      alert("Error connecting to server while saving the category.");
+      toast.error("Unable to save the category. Please try again.");
+    } finally {
+      setIsCategorySaving(false);
     }
   };
 
@@ -233,31 +248,39 @@ function AdminDashboard() {
 
 
   const handleDeleteClick = async (id) => {
-    if (window.confirm("Are you sure you want to delete this category?")) {
-      const token = sessionStorage.getItem("token");
-      try {
-        const response = await apiFetch(`/categories/${id}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": token ? `Bearer ${token}` : ""
-          }
-        });
+    const confirmed = await confirm({
+      title: "Delete category?",
+      message: "Products using this category may no longer display its name.",
+      confirmLabel: "Delete category",
+      danger: true
+    });
+    if (!confirmed) return;
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          alert(errorData.message || errorData.error || "Failed to delete category.");
-          return;
+    setDeletingCategoryId(id);
+    const token = sessionStorage.getItem("token");
+    try {
+      const response = await apiFetch(`/categories/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": token ? `Bearer ${token}` : ""
         }
+      });
 
-        alert("Category deleted successfully!");
-        if (editingId === id) {
-          handleCancelEdit();
-        }
-        await loadData();
-      } catch (error) {
-        console.error("Category delete error:", error);
-        alert("Error connecting to server while deleting the category.");
+      if (!response.ok) {
+        toast.error(await getResponseMessage(response, "Failed to delete category."));
+        return;
       }
+
+      toast.success("Category deleted successfully.");
+      if (editingId === id) {
+        handleCancelEdit();
+      }
+      await loadData();
+    } catch (error) {
+      console.error("Category delete error:", error);
+      toast.error("Unable to delete the category. Please try again.");
+    } finally {
+      setDeletingCategoryId(null);
     }
   };
 
@@ -279,10 +302,11 @@ function AdminDashboard() {
   const handleUpdateUserSubmit = async (e) => {
     e.preventDefault();
     if (!uName.trim() || !uEmail.trim()) {
-      alert("Name and Email cannot be empty.");
+      toast.error("Name and email cannot be empty.");
       return;
     }
     const token = sessionStorage.getItem("token");
+    setIsUserSaving(true);
     try {
       const response = await apiFetch(`/users/${editingUser.id}`, {
         method: "PUT",
@@ -298,47 +322,58 @@ function AdminDashboard() {
         })
       });
       if (response.ok) {
-        alert("User updated successfully!");
+        toast.success("User updated successfully.");
         setEditingUser(null);
-        loadData();
+        await loadData();
       } else {
-        alert("Failed to update user");
+        toast.error(await getResponseMessage(response, "Failed to update user."));
       }
     } catch (err) {
       console.error(err);
-      alert("Error connecting to server");
+      toast.error("Unable to update the user. Please try again.");
+    } finally {
+      setIsUserSaving(false);
     }
   };
 
   const handleDeleteUser = async (id) => {
     const loggedInUserId = sessionStorage.getItem("loggedInUserId");
     if (String(id) === String(loggedInUserId)) {
-      alert("You cannot delete yourself!");
+      toast.error("You cannot delete your own account.");
       return;
     }
 
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      const token = sessionStorage.getItem("token");
-      try {
-        const response = await apiFetch(`/users/${id}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": token ? `Bearer ${token}` : ""
-          }
-        });
-        if (response.ok) {
-          alert("User deleted successfully!");
-          loadData();
-          if (editingUser && editingUser.id === id) {
-            setEditingUser(null);
-          }
-        } else {
-          alert("Failed to delete user");
+    const confirmed = await confirm({
+      title: "Delete user?",
+      message: "This action cannot be undone.",
+      confirmLabel: "Delete user",
+      danger: true
+    });
+    if (!confirmed) return;
+
+    setDeletingUserId(id);
+    const token = sessionStorage.getItem("token");
+    try {
+      const response = await apiFetch(`/users/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": token ? `Bearer ${token}` : ""
         }
-      } catch (err) {
-        console.error(err);
-        alert("Error connecting to server");
+      });
+      if (response.ok) {
+        toast.success("User deleted successfully.");
+        await loadData();
+        if (editingUser && editingUser.id === id) {
+          setEditingUser(null);
+        }
+      } else {
+        toast.error(await getResponseMessage(response, "Failed to delete user."));
       }
+    } catch (err) {
+      console.error(err);
+      toast.error("Unable to delete the user. Please try again.");
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -362,10 +397,11 @@ function AdminDashboard() {
   const handleUpdateProductSubmit = async (e) => {
     e.preventDefault();
     if (!pName.trim()) {
-      alert("Product name cannot be empty.");
+      toast.error("Product name cannot be empty.");
       return;
     }
     const token = sessionStorage.getItem("token");
+    setIsProductSaving(true);
     try {
       const response = await apiFetch("/products", {
         method: "PATCH",
@@ -382,41 +418,52 @@ function AdminDashboard() {
         })
       });
       if (response.ok) {
-        alert("Product updated successfully!");
+        toast.success("Product updated successfully.");
         setEditingProduct(null);
-        loadData();
+        await loadData();
       } else {
-        alert("Failed to update product");
+        toast.error(await getResponseMessage(response, "Failed to update product."));
       }
     } catch (err) {
       console.error(err);
-      alert("Error connecting to server");
+      toast.error("Unable to update the product. Please try again.");
+    } finally {
+      setIsProductSaving(false);
     }
   };
 
   const handleDeleteProduct = async (id) => {
-    if (window.confirm("Are you sure you want to delete this product?")) {
-      const token = sessionStorage.getItem("token");
-      try {
-        const response = await apiFetch(`/products/${id}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": token ? `Bearer ${token}` : ""
-          }
-        });
-        if (response.ok) {
-          alert("Product deleted successfully!");
-          loadData();
-          if (editingProduct && editingProduct.id === id) {
-            setEditingProduct(null);
-          }
-        } else {
-          alert("Failed to delete product");
+    const confirmed = await confirm({
+      title: "Delete product?",
+      message: "This action cannot be undone.",
+      confirmLabel: "Delete product",
+      danger: true
+    });
+    if (!confirmed) return;
+
+    setDeletingProductId(id);
+    const token = sessionStorage.getItem("token");
+    try {
+      const response = await apiFetch(`/products/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": token ? `Bearer ${token}` : ""
         }
-      } catch (err) {
-        console.error(err);
-        alert("Error connecting to server");
+      });
+      if (response.ok) {
+        toast.success("Product deleted successfully.");
+        await loadData();
+        if (editingProduct && editingProduct.id === id) {
+          setEditingProduct(null);
+        }
+      } else {
+        toast.error(await getResponseMessage(response, "Failed to delete product."));
       }
+    } catch (err) {
+      console.error(err);
+      toast.error("Unable to delete the product. Please try again.");
+    } finally {
+      setDeletingProductId(null);
     }
   };
 
@@ -431,9 +478,12 @@ function AdminDashboard() {
   return (
     <div className="main-content container py-4 text-start" style={{ maxWidth: "1200px" }}>
       {/* Title Header */}
-      <div className="mb-4">
-        <h1 className="fw-bold mb-1" style={{ fontSize: "2.2rem" }}>Admin Dashboard</h1>
-        <p className="text-muted mb-0">Welcome back, Admin! Here's what's happening with your platform.</p>
+      <div className="d-flex justify-content-between align-items-start gap-3 mb-4 flex-wrap">
+        <div>
+          <h1 className="fw-bold mb-1" style={{ fontSize: "2.2rem" }}>Admin Dashboard</h1>
+          <p className="text-muted mb-0">Welcome back, Admin! Here's what's happening with your platform.</p>
+        </div>
+        <ReloadButton onClick={loadData} loading={isLoadingData} label="Reload data" />
       </div>
 
       <AdminStatsCards
@@ -454,6 +504,7 @@ function AdminDashboard() {
         description={description}
         setDescription={setDescription}
         onCategorySubmit={handleSubmit}
+        isCategorySaving={isCategorySaving}
         onCancelCategory={handleCancelEdit}
         editingUser={editingUser}
         userName={uName}
@@ -463,6 +514,7 @@ function AdminDashboard() {
         userRole={uRole}
         setUserRole={setURole}
         onUserSubmit={handleUpdateUserSubmit}
+        isUserSaving={isUserSaving}
         onCancelUser={handleCancelUserEdit}
         editingProduct={editingProduct}
         productName={pName}
@@ -475,6 +527,7 @@ function AdminDashboard() {
         productEndTime={pEndTime}
         setProductEndTime={setPEndTime}
         onProductSubmit={handleUpdateProductSubmit}
+        isProductSaving={isProductSaving}
         onCancelProduct={handleCancelProductEdit}
       />
 
@@ -494,6 +547,10 @@ function AdminDashboard() {
         onDeleteUser={handleDeleteUser}
         onEditProduct={handleEditProductClick}
         onDeleteProduct={handleDeleteProduct}
+        isLoading={isLoadingData}
+        deletingCategoryId={deletingCategoryId}
+        deletingUserId={deletingUserId}
+        deletingProductId={deletingProductId}
       />
     </div>
   );

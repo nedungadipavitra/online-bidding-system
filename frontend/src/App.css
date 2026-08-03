@@ -26,7 +26,29 @@
 }
 
 .main-content {
-  margin-top: 65px;
+  margin-top: 80px;
+  padding-top: 1px;
+}
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.reload-icon {
+  display: inline-block;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.reload-icon.is-spinning {
+  animation: reload-spin 0.8s linear infinite;
+}
+
+@keyframes reload-spin {
+  to { transform: rotate(360deg); }
 }
 
 .card {
@@ -59,8 +81,8 @@ label {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 65px);
-  margin-top: 65px;
+  min-height: calc(100vh - 80px);
+  margin-top: 80px;
   position: relative;
   width: 100%;
 }

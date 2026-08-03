@@ -16,6 +16,7 @@
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.17.0",
+    "react-toastify": "^11.1.0",
     "sockjs-client": "^1.6.1"
   },
   "devDependencies": {

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import LoadingState from "../components/LoadingState";
 import iphoneImg from "../assets/iphone.jpeg";
 import macbookImg from "../assets/macbook.png";
 import ps6Img from "../assets/ps6.png";
@@ -15,12 +17,17 @@ const imageMap = {
 function MyOrders() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchOrders = async () => {
       const userId = sessionStorage.getItem("loggedInUserId");
-      if (!userId) return;
+      if (!userId) {
+        setIsLoading(false);
+        return;
+      }
 
+      setIsLoading(true);
       try {
         const [initialOrders, products] = await Promise.all([
           apiJson(`/orders/buyer/${userId}`).catch(() => []),
@@ -78,6 +85,9 @@ function MyOrders() {
         setOrders(mapped);
       } catch (error) {
         console.error("Error fetching orders:", error);
+        toast.error("Unable to load your orders.");
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -125,7 +135,13 @@ function MyOrders() {
                 </tr>
               </thead>
               <tbody>
-                {orders.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="5">
+                      <LoadingState message="Loading your orders..." compact />
+                    </td>
+                  </tr>
+                ) : orders.length === 0 ? (
                   <tr>
                     <td colSpan="5" className="text-center py-5 text-muted">No orders placed yet.</td>
                   </tr>

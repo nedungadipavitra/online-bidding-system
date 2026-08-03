@@ -59,6 +59,18 @@ This document summarizes the changes made during the architecture, reliability, 
 - Product CRUD calls the product service through the gateway.
 - Bids and orders are displayed as read-only administrative views.
 
+## Latest frontend UX improvements
+
+- Replaced browser `alert()` flows with `react-toastify` to show backend success and error responses consistently.
+- Added a shared confirmation dialog for logout and destructive actions such as delete operations.
+- Added shared loading and reload UI helpers for buttons, fetch states, and dashboard refresh actions.
+- Added button-level loading states for login, register, add product, bid placement, wallet deposit, and admin edit forms.
+- Added animated reload controls for buyer, seller, and admin dashboards.
+- Updated the buyer dashboard, seller dashboard, admin dashboard, wallet, orders, and delivery pages to show loading states while data is being fetched.
+- Added a real-time bid history table to the Product Description page so higher bids appear at the top without refreshing.
+- Kept the existing realtime current-bid update behavior for both the buyer dashboard cards and the Product Description page.
+- Fixed page spacing so top content no longer hides behind the fixed navbar on login, register, home, and dashboard pages.
+
 ## Backend changes
 
 ### API gateway

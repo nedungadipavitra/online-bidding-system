@@ -151,6 +151,25 @@ export async function apiJson(path, options = {}) {
   return body;
 }
 
+export async function getResponseMessage(response, fallback = "Request failed") {
+  try {
+    const contentType = response.headers.get("content-type") || "";
+    const body = contentType.includes("application/json")
+      ? await response.clone().json()
+      : await response.clone().text();
+
+    if (typeof body === "object" && body !== null) {
+      if (body.errors && typeof body.errors === "object" && !Array.isArray(body.errors)) {
+        return Object.values(body.errors).join(", ");
+      }
+      return body.message || body.error || fallback;
+    }
+    return body || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function saveAuthSession({ accessToken, refreshToken, user }) {
   sessionStorage.setItem("token", accessToken);
   if (refreshToken) {

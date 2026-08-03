@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import login from "../assets/login.png";
 import "../styles/Login.css";
+import { toast } from "react-toastify";
 import { apiJson, decodeJwtPayload, saveAuthSession } from "../api/client";
 
 function Login() {
@@ -10,13 +11,15 @@ function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      alert("Email and password are required");
+      toast.error("Email and password are required.");
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const data = await apiJson("/auth/login", {
         method: "POST",
@@ -51,7 +54,9 @@ function Login() {
       }
     } catch (error) {
       console.error("Login error:", error);
-      alert(error.status === 401 ? "Invalid email or password" : "Error connecting to server");
+      toast.error(error.status === 401 ? "Invalid email or password." : error.message || "Unable to connect to the server.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -81,6 +86,8 @@ function Login() {
               logo={login}
               hover={"blue"}
               text={"Login"}
+              loading={isSubmitting}
+              loadingText="Signing in..."
             />
           </div>
 

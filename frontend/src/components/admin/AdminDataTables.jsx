@@ -1,3 +1,5 @@
+import LoadingState from "../LoadingState";
+
 function TableShell({ title, children }) {
   return (
     <div className="card p-4 border shadow-sm">
@@ -15,7 +17,7 @@ function EmptyRow({ colSpan, children }) {
   );
 }
 
-export function CategoriesTable({ categories, onEdit, onDelete }) {
+export function CategoriesTable({ categories, onEdit, onDelete, deletingCategoryId }) {
   return (
     <TableShell title="Categories">
       <table className="table align-middle table-hover">
@@ -27,8 +29,10 @@ export function CategoriesTable({ categories, onEdit, onDelete }) {
               <td className="fw-semibold">{category.name}</td>
               <td className="text-muted">{category.description}</td>
               <td className="text-center">
-                <button className="btn btn-outline-primary btn-sm me-2" onClick={() => onEdit(category)}>Edit</button>
-                <button className="btn btn-outline-danger btn-sm" onClick={() => onDelete(category.id)}>Delete</button>
+                <button className="btn btn-outline-primary btn-sm me-2" onClick={() => onEdit(category)} disabled={deletingCategoryId === category.id}>Edit</button>
+                <button className="btn btn-outline-danger btn-sm" onClick={() => onDelete(category.id)} disabled={deletingCategoryId === category.id}>
+                  {deletingCategoryId === category.id ? "Deleting..." : "Delete"}
+                </button>
               </td>
             </tr>
           ))}
@@ -39,7 +43,7 @@ export function CategoriesTable({ categories, onEdit, onDelete }) {
   );
 }
 
-export function UsersTable({ users, onEdit, onDelete }) {
+export function UsersTable({ users, onEdit, onDelete, deletingUserId }) {
   return (
     <TableShell title="Users">
       <table className="table align-middle table-hover">
@@ -52,8 +56,10 @@ export function UsersTable({ users, onEdit, onDelete }) {
               <td className="text-muted">{user.email}</td>
               <td><span className={`badge ${user.role === "ADMIN" ? "bg-danger" : user.role === "SELLER" ? "bg-success" : user.role === "DELIVERY" ? "bg-warning text-dark" : "bg-primary"}`}>{user.role}</span></td>
               <td className="text-center">
-                <button className="btn btn-outline-primary btn-sm me-2" onClick={() => onEdit(user)}>Update</button>
-                <button className="btn btn-outline-danger btn-sm" onClick={() => onDelete(user.id)}>Delete</button>
+                <button className="btn btn-outline-primary btn-sm me-2" onClick={() => onEdit(user)} disabled={deletingUserId === user.id}>Update</button>
+                <button className="btn btn-outline-danger btn-sm" onClick={() => onDelete(user.id)} disabled={deletingUserId === user.id}>
+                  {deletingUserId === user.id ? "Deleting..." : "Delete"}
+                </button>
               </td>
             </tr>
           ))}
@@ -64,7 +70,7 @@ export function UsersTable({ users, onEdit, onDelete }) {
   );
 }
 
-export function ProductsTable({ products, onEdit, onDelete }) {
+export function ProductsTable({ products, onEdit, onDelete, deletingProductId }) {
   return (
     <TableShell title="Products (Auctions)">
       <table className="table align-middle table-hover">
@@ -79,8 +85,10 @@ export function ProductsTable({ products, onEdit, onDelete }) {
               <td className="text-muted">{new Date(product.endTime).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
               <td><span className={`badge ${product.status === "ACTIVE" ? "bg-success" : "bg-secondary"}`}>{product.status}</span></td>
               <td className="text-center">
-                <button className="btn btn-outline-primary btn-sm me-2" onClick={() => onEdit(product)}>Update</button>
-                <button className="btn btn-outline-danger btn-sm" onClick={() => onDelete(product.id)}>Delete</button>
+                <button className="btn btn-outline-primary btn-sm me-2" onClick={() => onEdit(product)} disabled={deletingProductId === product.id}>Update</button>
+                <button className="btn btn-outline-danger btn-sm" onClick={() => onDelete(product.id)} disabled={deletingProductId === product.id}>
+                  {deletingProductId === product.id ? "Deleting..." : "Delete"}
+                </button>
               </td>
             </tr>
           ))}
@@ -163,15 +171,23 @@ function AdminDataTables({
   onEditUser,
   onDeleteUser,
   onEditProduct,
-  onDeleteProduct
+  onDeleteProduct,
+  isLoading,
+  deletingCategoryId,
+  deletingUserId,
+  deletingProductId
 }) {
+  if (isLoading) {
+    return <LoadingState message="Loading admin data..." compact />;
+  }
+
   switch (activeView) {
     case "categories":
-      return <CategoriesTable categories={categories} onEdit={onEditCategory} onDelete={onDeleteCategory} />;
+      return <CategoriesTable categories={categories} onEdit={onEditCategory} onDelete={onDeleteCategory} deletingCategoryId={deletingCategoryId} />;
     case "users":
-      return <UsersTable users={users} onEdit={onEditUser} onDelete={onDeleteUser} />;
+      return <UsersTable users={users} onEdit={onEditUser} onDelete={onDeleteUser} deletingUserId={deletingUserId} />;
     case "products":
-      return <ProductsTable products={products} onEdit={onEditProduct} onDelete={onDeleteProduct} />;
+      return <ProductsTable products={products} onEdit={onEditProduct} onDelete={onDeleteProduct} deletingProductId={deletingProductId} />;
     case "bids":
       return <BidsTable bids={bids} />;
     case "orders":

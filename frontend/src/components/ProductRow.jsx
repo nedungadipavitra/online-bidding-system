@@ -2,7 +2,8 @@ import { useState } from "react";
 import iphone from "../assets/iphone.jpeg";
 import ActiveStatus from "./ActiveStatus";
 import SoldStatus from "./SoldStatus";
-import { apiFetch } from "../api/client";
+import { toast } from "react-toastify";
+import { apiFetch, getResponseMessage } from "../api/client";
 
 const fallbackProduct = {
   name: "iPhone 17 Pro",
@@ -19,7 +20,7 @@ function ProductRow({ product = fallbackProduct, deliveryPartners = [], onAssign
 
   const handleAssign = async () => {
     if (!selectedPartnerId) {
-      alert("Please select a delivery partner first!");
+      toast.error("Please select a delivery partner first.");
       return;
     }
     setIsAssigning(true);
@@ -45,7 +46,7 @@ function ProductRow({ product = fallbackProduct, deliveryPartners = [], onAssign
           const newOrder = await createRes.json();
           oId = newOrder.id;
         } else {
-          throw new Error("Failed to create order");
+          throw new Error(await getResponseMessage(createRes, "Failed to create order."));
         }
       }
 
@@ -60,14 +61,14 @@ function ProductRow({ product = fallbackProduct, deliveryPartners = [], onAssign
         })
       });
       if (assignRes.ok) {
-        alert("Delivery partner assigned successfully!");
+        toast.success("Delivery partner assigned successfully.");
         if (onAssignSuccess) onAssignSuccess();
       } else {
-        alert("Failed to assign delivery partner.");
+        toast.error(await getResponseMessage(assignRes, "Failed to assign delivery partner."));
       }
     } catch (err) {
       console.error(err);
-      alert("Error assigning delivery partner.");
+      toast.error(err.message || "Error assigning delivery partner.");
     } finally {
       setIsAssigning(false);
     }

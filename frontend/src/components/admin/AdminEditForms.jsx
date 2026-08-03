@@ -17,6 +17,7 @@ function AdminEditForms({
   description,
   setDescription,
   onCategorySubmit,
+  isCategorySaving,
   onCancelCategory,
   editingUser,
   userName,
@@ -26,6 +27,7 @@ function AdminEditForms({
   userRole,
   setUserRole,
   onUserSubmit,
+  isUserSaving,
   onCancelUser,
   editingProduct,
   productName,
@@ -38,6 +40,7 @@ function AdminEditForms({
   productEndTime,
   setProductEndTime,
   onProductSubmit,
+  isProductSaving,
   onCancelProduct
 }) {
   return (
@@ -57,7 +60,14 @@ function AdminEditForms({
               </div>
             </div>
             <ActionButtons onCancel={editingId ? onCancelCategory : undefined} width="180px">
-              <Button color="var(--blue-primary)" hover="blue" text={editingId ? "Update Category" : "+ Add Category"} type="submit" />
+              <Button
+                color="var(--blue-primary)"
+                hover="blue"
+                text={editingId ? "Update Category" : "+ Add Category"}
+                type="submit"
+                loading={isCategorySaving}
+                loadingText={editingId ? "Updating..." : "Adding..."}
+              />
             </ActionButtons>
           </form>
         </div>
@@ -72,7 +82,16 @@ function AdminEditForms({
               <div className="col-12 col-md-4 text-start"><label className="form-label small fw-semibold">Email Address</label><input type="email" className="form-control" value={userEmail} onChange={(event) => setUserEmail(event.target.value)} required /></div>
               <div className="col-12 col-md-4 text-start"><label className="form-label small fw-semibold">Role</label><select className="form-select" value={userRole} onChange={(event) => setUserRole(event.target.value)}><option value="BUYER">BUYER</option><option value="SELLER">SELLER</option><option value="DELIVERY">DELIVERY</option><option value="ADMIN">ADMIN</option></select></div>
             </div>
-            <ActionButtons onCancel={onCancelUser} width="150px"><Button color="var(--blue-primary)" hover="blue" text="Update User" type="submit" /></ActionButtons>
+            <ActionButtons onCancel={onCancelUser} width="150px">
+              <Button
+                color="var(--blue-primary)"
+                hover="blue"
+                text="Update User"
+                type="submit"
+                loading={isUserSaving}
+                loadingText="Updating..."
+              />
+            </ActionButtons>
           </form>
         </div>
       )}
@@ -95,7 +114,16 @@ function AdminEditForms({
               <div className="col-12 col-md-4 text-start"><label className="form-label small fw-semibold">Base Price (INR)</label><input type="number" className="form-control" value={productBasePrice} onChange={(event) => setProductBasePrice(event.target.value)} required /></div>
               <div className="col-12 col-md-4 text-start"><label className="form-label small fw-semibold">End Time</label><input type="datetime-local" className="form-control" value={productEndTime ? productEndTime.substring(0, 16) : ""} onChange={(event) => setProductEndTime(event.target.value)} required /></div>
             </div>
-            <ActionButtons onCancel={onCancelProduct}><Button color="var(--blue-primary)" hover="blue" text="Update Product" type="submit" /></ActionButtons>
+            <ActionButtons onCancel={onCancelProduct}>
+              <Button
+                color="var(--blue-primary)"
+                hover="blue"
+                text="Update Product"
+                type="submit"
+                loading={isProductSaving}
+                loadingText="Updating..."
+              />
+            </ActionButtons>
           </form>
         </div>
       )}

@@ -1,15 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "react-toastify";
+import LoadingState from "../components/LoadingState";
 import ProductRow from "../components/ProductRow";
 import { apiJson } from "../api/client";
 import { createRequestCache } from "../api/resources";
 import { getAuctionPhase } from "../utils/auctionStatus";
 
-function MyProducts({ refreshTrigger }) {
+function MyProducts({ refreshTrigger, onLoadingChange }) {
   const [products, setProducts] = useState([]);
   const [deliveryPartners, setDeliveryPartners] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const loggedInUserId = Number(sessionStorage.getItem("loggedInUserId"));
 
   const fetchSellerProducts = useCallback(async () => {
+    setIsLoading(true);
+    onLoadingChange?.(true);
     try {
       const requestCache = createRequestCache();
       const [data, ordersData] = await Promise.all([
@@ -50,8 +55,12 @@ function MyProducts({ refreshTrigger }) {
       setProducts(mapped);
     } catch (error) {
       console.error("Error fetching seller products:", error);
+      toast.error("Unable to load your products.");
+    } finally {
+      setIsLoading(false);
+      onLoadingChange?.(false);
     }
-  }, [loggedInUserId]);
+  }, [loggedInUserId, onLoadingChange]);
 
   useEffect(() => {
     // The callback performs external data loading and updates state after its async responses.
@@ -66,6 +75,7 @@ function MyProducts({ refreshTrigger }) {
         setDeliveryPartners(data);
       } catch (error) {
         console.error("Error fetching delivery partners:", error);
+        toast.error("Unable to load delivery partners.");
       }
     };
     fetchDeliveryPartners();
@@ -75,6 +85,9 @@ function MyProducts({ refreshTrigger }) {
     <div className="card p-4">
       <h4 className="px-2">My Products</h4>
       <div className="container mt-1">
+        {isLoading && products.length === 0 ? (
+          <LoadingState message="Loading your products..." compact />
+        ) : (
         <div className="table-responsive mt-3">
           <table className="table align-middle">
             <thead>
@@ -110,6 +123,7 @@ function MyProducts({ refreshTrigger }) {
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );

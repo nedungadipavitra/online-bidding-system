@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import register from "../assets/register.png";
 import "../styles/Register.css";
+import { toast } from "react-toastify";
 import { apiJson } from "../api/client";
 
 function Register() {
@@ -15,20 +16,22 @@ function Register() {
   const [password, setPassword] = useState("");
 
   const [role, setRole] = useState("BUYER");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleRegister = async () => {
     if (!name || !email || !password || !role) {
-      alert("All fields are required");
+      toast.error("All fields are required.");
       return;
     }
 
+    setIsSubmitting(true);
     try {
       await apiJson("/auth/register", {
         method: "POST",
         body: JSON.stringify({ name, email, password, role })
       });
 
-      alert("Registration Successful!");
+      toast.success("Registration successful. You can now sign in.");
       navigate("/login");
     } catch (error) {
       console.error("Registration error:", error);
@@ -37,7 +40,9 @@ function Register() {
       const errorMessage = Array.isArray(validationErrors)
         ? validationErrors.map((item) => item.defaultMessage || JSON.stringify(item)).join(", ")
         : body?.message || error.message || "Registration failed";
-      alert(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -92,6 +97,8 @@ function Register() {
               logo={register}
               hover={"green"}
               text={"Register"}
+              loading={isSubmitting}
+              loadingText="Creating account..."
             />
           </div>
 

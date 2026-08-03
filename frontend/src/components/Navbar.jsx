@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { toast } from "react-toastify";
 import { apiFetch, clearAuthSession, getRefreshToken } from "../api/client";
+import { useConfirm } from "./confirmContext";
 
 function Navbar() {
   const navigate = useNavigate();
   useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const confirm = useConfirm();
 
   const user = (() => {
     const name = sessionStorage.getItem("loggedInUserName");
@@ -14,6 +18,15 @@ function Navbar() {
   })();
 
   const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: "Log out?",
+      message: "You will need to sign in again to access your dashboard.",
+      confirmLabel: "Log out",
+      danger: true
+    });
+    if (!confirmed) return;
+
+    setIsLoggingOut(true);
     const refreshToken = getRefreshToken();
     if (refreshToken) {
       try {
@@ -26,7 +39,9 @@ function Navbar() {
       }
     }
     clearAuthSession();
+    toast.success("You have been logged out.");
     navigate("/");
+    setIsLoggingOut(false);
   };
 
   const getDashboardPath = () => {
@@ -99,10 +114,11 @@ function Navbar() {
 
                 <button
                   onClick={handleLogout}
+                  disabled={isLoggingOut}
                   style={{ backgroundColor: "#dc3545" }}
                   className="text-white rounded-1 border-0 px-3 py-2 text-center"
                 >
-                  Logout
+                  {isLoggingOut ? "Logging out..." : "Logout"}
                 </button>
               </>
             ) : (
