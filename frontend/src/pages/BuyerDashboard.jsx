@@ -1,50 +1,92 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import ProductCard from "../components/ProductCard";
 import Button from "../components/Button";
+import LoadingState from "../components/LoadingState";
+import ReloadButton from "../components/ReloadButton";
 import "../styles/BuyerDashboard.css";
 
 import share from "../assets/share-white.png";
+import { apiFetch, getResponseMessage } from "../api/client";
+import { createRequestCache } from "../api/resources";
+import { createWebSocketClient } from "../utils/websocket";
+import { isAuctionOpen } from "../utils/auctionStatus";
 
 function BuyerDashboard() {
   const navigate = useNavigate();
   const [auctions, setAuctions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const userName = sessionStorage.getItem("loggedInUserName") || "Buyer";
 
-  const loadAuctions = async () => {
+  const loadAuctions = useCallback(async () => {
+    setIsLoading(true);
     try {
       const token = sessionStorage.getItem("token");
-      const response = await fetch("http://localhost:8080/products", {
+      const response = await apiFetch("/products", {
         headers: {
           "Authorization": token ? `Bearer ${token}` : ""
         }
       });
       if (response.ok) {
         const data = await response.json();
+        const highestBids = await createRequestCache()
+          .getHighestBids(data.map((product) => product.productId))
+          .catch(() => ({}));
         const mapped = data.map(p => ({
           id: p.productId,
           name: p.name,
           description: p.description,
           image: p.imageUrl,
           basePrice: p.basePrice,
-          currentBid: p.currentHighestBid || p.basePrice,
+          currentBid: highestBids[p.productId]?.amount || p.currentHighestBid || p.basePrice,
           endTime: p.auctionEndTime,
           startTime: p.auctionStartTime,
           status: p.status
         }));
-        const activeAuctions = mapped.filter((a) => a.status === "ACTIVE" && new Date(a.endTime) > new Date());
+        const activeAuctions = mapped.filter((auction) => isAuctionOpen(auction));
         setAuctions(activeAuctions);
+      } else {
+        toast.error(await getResponseMessage(response, "Unable to load auctions."));
       }
     } catch (error) {
       console.error("Error fetching auctions:", error);
+      toast.error("Unable to load auctions. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    // The callback performs external data loading and updates state after its async responses.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAuctions();
-    const interval = setInterval(loadAuctions, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [loadAuctions]);
+
+  const auctionIdsKey = auctions.map((auction) => auction.id).join(",");
+
+  useEffect(() => {
+    const auctionIds = auctionIdsKey ? auctionIdsKey.split(",") : [];
+    if (auctionIds.length === 0) {
+      return undefined;
+    }
+
+    const disconnect = createWebSocketClient((bidUpdate) => {
+      const nextBid = Number(bidUpdate.amount);
+      if (!Number.isFinite(nextBid)) {
+        return;
+      }
+      setAuctions((currentAuctions) => currentAuctions.map((auction) => {
+        if (String(auction.id) !== String(bidUpdate.auctionId)
+            || nextBid <= Number(auction.currentBid)) {
+          return auction;
+        }
+        return { ...auction, currentBid: nextBid };
+      }));
+    }, auctionIds);
+
+    return disconnect;
+  }, [auctionIdsKey]);
 
   return (
     <>
@@ -76,33 +118,28 @@ function BuyerDashboard() {
         {/* Active Auctions */}
         <div className="section-header">
           <h2>Active Auctions</h2>
+          <ReloadButton onClick={loadAuctions} loading={isLoading} label="Reload bids" />
         </div>
 
         {/* Product Cards */}
-        <div className="auctions-grid">
-          {auctions.map((auction) => (
-            <ProductCard
-              key={auction.id}
-              product={auction}
-              onBidPlaced={loadAuctions}
-            />
-          ))}
-          {auctions.length === 0 && (
-            <div className="text-muted py-5 text-center w-100 grid-span-4" style={{ gridColumn: "1 / -1" }}>
-              No auctions available.
-            </div>
-          )}
-        </div>
-        <div className="view-all-container">
-          <div style={{ width: "210px" }}>
-            <Button
-              color={"var(--blue-primary)"}
-              logo={share}
-              hover={"blue"}
-              text={"View All Auctions"}
-            />
+        {isLoading && auctions.length === 0 ? (
+          <LoadingState message="Loading active auctions..." />
+        ) : (
+          <div className="auctions-grid">
+            {auctions.map((auction) => (
+              <ProductCard
+                key={auction.id}
+                product={auction}
+                onBidPlaced={loadAuctions}
+              />
+            ))}
+            {auctions.length === 0 && (
+              <div className="text-muted py-5 text-center w-100 grid-span-4" style={{ gridColumn: "1 / -1" }}>
+                No auctions available.
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
     </>
   );

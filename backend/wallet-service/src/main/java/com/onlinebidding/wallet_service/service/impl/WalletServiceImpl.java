@@ -2,13 +2,17 @@ package com.onlinebidding.wallet_service.service.impl;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.onlinebidding.wallet_service.dto.CreateWalletRequest;
+import com.onlinebidding.wallet_service.dto.BidSettlementRequest;
 import com.onlinebidding.wallet_service.dto.WalletDto;
 import com.onlinebidding.wallet_service.entity.Transaction;
 import com.onlinebidding.wallet_service.entity.TransactionType;
@@ -86,7 +90,7 @@ public class WalletServiceImpl implements WalletService {
 
 	@Override
 	public WalletDto deposit(Long userId, BigDecimal amount) {
-		Wallet wallet = walletRepo.findByUserId(userId)
+		Wallet wallet = walletRepo.findByUserIdForUpdate(userId)
 				.orElseThrow(() -> new ResourceNotFoundException("Wallet not found for user: " + userId));
 		wallet.setBalance(wallet.getBalance().add(amount));
 
@@ -104,7 +108,7 @@ public class WalletServiceImpl implements WalletService {
 
 	@Override
 	public WalletDto withdraw(Long userId, BigDecimal amount) {
-		Wallet wallet = walletRepo.findByUserId(userId)
+		Wallet wallet = walletRepo.findByUserIdForUpdate(userId)
 				.orElseThrow(() -> new ResourceNotFoundException("Wallet not found for user: " + userId));
 		if (wallet.getBalance().compareTo(amount) < 0) {
 			throw new InsufficientBalanceException("Insufficient wallet balance");
@@ -121,5 +125,80 @@ public class WalletServiceImpl implements WalletService {
 		transactionRepo.save(transaction);
 
 		return mapper.toDto(walletRepo.save(wallet));
+	}
+
+	@Override
+	public WalletDto settleBid(BidSettlementRequest request) {
+		if (request.getBidderId().equals(request.getSellerId())) {
+			throw new IllegalArgumentException("A seller cannot bid on their own auction");
+		}
+
+		BigDecimal previousAmount = request.getPreviousAmount() == null
+				? BigDecimal.ZERO
+				: request.getPreviousAmount();
+		Map<Long, Wallet> wallets = lockWallets(request, previousAmount);
+		Wallet bidderWallet = wallets.get(request.getBidderId());
+		Wallet sellerWallet = wallets.get(request.getSellerId());
+
+		if (bidderWallet.getBalance().compareTo(request.getNewAmount()) < 0) {
+			throw new InsufficientBalanceException("Insufficient wallet balance for this bid");
+		}
+
+		bidderWallet.setBalance(bidderWallet.getBalance().subtract(request.getNewAmount()));
+		sellerWallet.setBalance(sellerWallet.getBalance().add(request.getNewAmount()));
+		saveTransaction(request.getBidderId(), request.getNewAmount(), TransactionType.WITHDRAW,
+				"Bid amount reserved");
+		saveTransaction(request.getSellerId(), request.getNewAmount(), TransactionType.DEPOSIT,
+				"Bid received");
+
+		if (request.getPreviousBidderId() != null && previousAmount.compareTo(BigDecimal.ZERO) > 0) {
+			Wallet previousBidderWallet = wallets.get(request.getPreviousBidderId());
+			previousBidderWallet.setBalance(previousBidderWallet.getBalance().add(previousAmount));
+			sellerWallet.setBalance(sellerWallet.getBalance().subtract(previousAmount));
+			saveTransaction(request.getPreviousBidderId(), previousAmount, TransactionType.REFUND,
+					"Previous highest bid refunded");
+			saveTransaction(request.getSellerId(), previousAmount, TransactionType.WITHDRAW,
+					"Previous bid replaced");
+		}
+
+		walletRepo.saveAll(wallets.values());
+		return mapper.toDto(bidderWallet);
+	}
+
+	private Map<Long, Wallet> lockWallets(BidSettlementRequest request, BigDecimal previousAmount) {
+		TreeSet<Long> userIds = new TreeSet<>();
+		userIds.add(request.getBidderId());
+		userIds.add(request.getSellerId());
+		if (request.getPreviousBidderId() != null && previousAmount.compareTo(BigDecimal.ZERO) > 0) {
+			userIds.add(request.getPreviousBidderId());
+		}
+
+		Map<Long, Wallet> wallets = new HashMap<>();
+		for (Long userId : userIds) {
+			Wallet wallet = walletRepo.findByUserIdForUpdate(userId).orElse(null);
+			if (wallet == null && userId.equals(request.getSellerId())) {
+				wallet = Wallet.builder()
+						.userId(userId)
+						.balance(BigDecimal.ZERO)
+						.status(WalletStatus.ACTIVE)
+						.build();
+				wallet = walletRepo.save(wallet);
+			}
+			if (wallet == null) {
+				throw new ResourceNotFoundException("Wallet not found for user: " + userId);
+			}
+			wallets.put(userId, wallet);
+		}
+		return wallets;
+	}
+
+	private void saveTransaction(Long userId, BigDecimal amount, TransactionType type, String description) {
+		transactionRepo.save(Transaction.builder()
+				.amount(amount)
+				.type(type)
+				.description(description)
+				.timestamp(LocalDateTime.now())
+				.userId(userId)
+				.build());
 	}
 }

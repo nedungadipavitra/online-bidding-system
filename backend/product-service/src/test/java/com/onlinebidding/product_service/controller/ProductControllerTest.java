@@ -62,6 +62,7 @@ class ProductControllerTest {
 
         mockMvc.perform(post("/products")
                 .header("X-User-Role", "SELLER")
+                .header("X-User-Id", "42")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(jsonPayload))
                 .andExpect(status().isCreated())

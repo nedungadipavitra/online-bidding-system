@@ -1,28 +1,47 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { toast } from "react-toastify";
+import { apiFetch, clearAuthSession, getRefreshToken } from "../api/client";
+import { useConfirm } from "./confirmContext";
 
 function Navbar() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [user, setUser] = useState(null);
+  useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const confirm = useConfirm();
 
-  useEffect(() => {
+  const user = (() => {
     const name = sessionStorage.getItem("loggedInUserName");
     const role = sessionStorage.getItem("loggedInUserRole");
-    if (name && role) {
-      setUser({ name, role });
-    } else {
-      setUser(null);
-    }
-    setIsOpen(false); // Close mobile menu on page navigation
-  }, [location]);
+    return name && role ? { name, role } : null;
+  })();
 
-  const handleLogout = () => {
-    sessionStorage.removeItem("loggedInUserName");
-    sessionStorage.removeItem("loggedInUserRole");
-    setUser(null);
+  const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: "Log out?",
+      message: "You will need to sign in again to access your dashboard.",
+      confirmLabel: "Log out",
+      danger: true
+    });
+    if (!confirmed) return;
+
+    setIsLoggingOut(true);
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await apiFetch("/auth/logout", {
+          method: "POST",
+          body: JSON.stringify({ refreshToken }),
+        });
+      } catch (error) {
+        console.error("Logout request failed:", error);
+      }
+    }
+    clearAuthSession();
+    toast.success("You have been logged out.");
     navigate("/");
+    setIsLoggingOut(false);
   };
 
   const getDashboardPath = () => {
@@ -95,10 +114,11 @@ function Navbar() {
 
                 <button
                   onClick={handleLogout}
+                  disabled={isLoggingOut}
                   style={{ backgroundColor: "#dc3545" }}
                   className="text-white rounded-1 border-0 px-3 py-2 text-center"
                 >
-                  Logout
+                  {isLoggingOut ? "Logging out..." : "Logout"}
                 </button>
               </>
             ) : (

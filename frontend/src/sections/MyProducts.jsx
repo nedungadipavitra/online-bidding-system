@@ -1,113 +1,81 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { toast } from "react-toastify";
+import LoadingState from "../components/LoadingState";
 import ProductRow from "../components/ProductRow";
+import { apiJson } from "../api/client";
+import { createRequestCache } from "../api/resources";
+import { getAuctionPhase } from "../utils/auctionStatus";
 
-function MyProducts({ refreshTrigger }) {
+function MyProducts({ refreshTrigger, onLoadingChange }) {
   const [products, setProducts] = useState([]);
   const [deliveryPartners, setDeliveryPartners] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const loggedInUserId = Number(sessionStorage.getItem("loggedInUserId"));
 
-  const fetchSellerProducts = async () => {
+  const fetchSellerProducts = useCallback(async () => {
+    setIsLoading(true);
+    onLoadingChange?.(true);
     try {
-      const token = sessionStorage.getItem("token");
-      const response = await fetch("http://localhost:8080/products", {
-        headers: {
-          "Authorization": token ? `Bearer ${token}` : ""
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const mapped = await Promise.all(data.map(async (p) => {
-          let highestBid = p.currentHighestBid || p.basePrice;
-          let winnerName = null;
-          let winnerId = null;
-          try {
-            const bidRes = await fetch(`http://localhost:8080/bids/auction/${p.productId}/highest`, {
-              headers: {
-                "Authorization": token ? `Bearer ${token}` : ""
-              }
-            });
-            if (bidRes.ok) {
-              const bidData = await bidRes.json();
-              if (bidData && bidData.amount) {
-                highestBid = bidData.amount;
-                winnerName = bidData.bidderName;
-                winnerId = bidData.bidderId;
-              }
-            }
-          } catch (e) {
-            console.error(e);
-          }
+      const requestCache = createRequestCache();
+      const [data, ordersData] = await Promise.all([
+        apiJson("/products").catch(() => []),
+        apiJson(`/orders/seller/${loggedInUserId}`).catch(() => [])
+      ]);
+      const highestBids = await requestCache
+        .getHighestBids(data.map((product) => product.productId))
+        .catch(() => ({}));
 
-          // Fetch order details if exists to get delivery status and delivery person name
-          let deliveryPersonName = null;
-          let deliveryStatus = null;
-          let orderId = null;
-          try {
-            const orderRes = await fetch(`http://localhost:8080/orders`, {
-              headers: {
-                "Authorization": token ? `Bearer ${token}` : ""
-              }
-            });
-            if (orderRes.ok) {
-              const ordersData = await orderRes.json();
-              const matchedOrder = ordersData.find(o => Number(o.productId) === Number(p.productId));
-              if (matchedOrder) {
-                deliveryPersonName = matchedOrder.deliveryPersonName;
-                deliveryStatus = matchedOrder.status || matchedOrder.deliveryStatus;
-                orderId = matchedOrder.id;
-              }
-            }
-          } catch (e) {
-            console.error(e);
-          }
+      const mapped = data
+        .filter((product) => Number(product.sellerId) === loggedInUserId)
+        .map((product) => {
+          const highestBid = highestBids[product.productId];
+          const matchedOrder = ordersData.find(
+            (order) => Number(order.productId) === Number(product.productId)
+          );
 
           return {
-            id: p.productId,
-            name: p.name,
-            description: p.description,
-            image: p.imageUrl,
-            basePrice: p.basePrice,
-            currentBid: highestBid,
-            endTime: p.auctionEndTime,
-            status: p.status,
-            sellerId: p.sellerId,
-            winnerName: winnerName,
-            winnerId: winnerId,
-            deliveryPersonName: deliveryPersonName,
-            deliveryStatus: deliveryStatus,
-            orderId: orderId
+            id: product.productId,
+            name: product.name,
+            description: product.description,
+            image: product.imageUrl,
+            basePrice: product.basePrice,
+            currentBid: highestBid?.amount || product.currentHighestBid || product.basePrice,
+            startTime: product.auctionStartTime,
+            endTime: product.auctionEndTime,
+            status: getAuctionPhase(product),
+            sellerId: product.sellerId,
+            winnerName: highestBid?.bidderName || null,
+            winnerId: highestBid?.bidderId || null,
+            deliveryPersonName: matchedOrder?.deliveryPersonName || null,
+            deliveryStatus: matchedOrder?.status || matchedOrder?.deliveryStatus || null,
+            orderId: matchedOrder?.id || null
           };
-        }));
-        const filtered = mapped.filter(p => Number(p.sellerId) === loggedInUserId);
-        console.log("MyProducts Debug:", { loggedInUserId, fetchedCount: mapped.length, filteredCount: filtered.length, mapped });
-        setProducts(filtered);
-      }
+        });
+
+      setProducts(mapped);
     } catch (error) {
       console.error("Error fetching seller products:", error);
+      toast.error("Unable to load your products.");
+    } finally {
+      setIsLoading(false);
+      onLoadingChange?.(false);
     }
-  };
+  }, [loggedInUserId, onLoadingChange]);
 
   useEffect(() => {
+    // The callback performs external data loading and updates state after its async responses.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSellerProducts();
-    const interval = setInterval(fetchSellerProducts, 5000);
-    return () => clearInterval(interval);
-  }, [refreshTrigger, loggedInUserId]);
+  }, [refreshTrigger, fetchSellerProducts]);
 
   useEffect(() => {
     const fetchDeliveryPartners = async () => {
       try {
-        const token = sessionStorage.getItem("token");
-        const response = await fetch("http://localhost:8080/users/delivery", {
-          headers: {
-            "Authorization": token ? `Bearer ${token}` : ""
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setDeliveryPartners(data);
-        }
+        const data = await apiJson("/users/delivery");
+        setDeliveryPartners(data);
       } catch (error) {
         console.error("Error fetching delivery partners:", error);
+        toast.error("Unable to load delivery partners.");
       }
     };
     fetchDeliveryPartners();
@@ -117,6 +85,9 @@ function MyProducts({ refreshTrigger }) {
     <div className="card p-4">
       <h4 className="px-2">My Products</h4>
       <div className="container mt-1">
+        {isLoading && products.length === 0 ? (
+          <LoadingState message="Loading your products..." compact />
+        ) : (
         <div className="table-responsive mt-3">
           <table className="table align-middle">
             <thead>
@@ -152,6 +123,7 @@ function MyProducts({ refreshTrigger }) {
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );

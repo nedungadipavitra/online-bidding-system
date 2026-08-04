@@ -63,7 +63,11 @@ public class UserController {
     }
 
     @GetMapping("/delivery")
-    public ResponseEntity<List<UserDto>> getDeliveryPartners() {
+    public ResponseEntity<List<UserDto>> getDeliveryPartners(
+            @RequestHeader(value = "X-User-Role", required = false) String role) {
+        if (role == null || (!"SELLER".equalsIgnoreCase(role) && !"ADMIN".equalsIgnoreCase(role))) {
+            return ResponseEntity.status(403).build();
+        }
         List<UserDto> deliveryPartners = userService.getAllUsers().stream()
                 .filter(u -> com.onlinebidding.user_service.entity.Role.DELIVERY == u.getRole())
                 .toList();

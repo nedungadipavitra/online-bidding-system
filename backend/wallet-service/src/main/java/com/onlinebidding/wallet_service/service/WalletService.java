@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import com.onlinebidding.wallet_service.dto.CreateWalletRequest;
+import com.onlinebidding.wallet_service.dto.BidSettlementRequest;
 import com.onlinebidding.wallet_service.dto.WalletDto;
 
 public interface WalletService {
@@ -15,4 +16,5 @@ public interface WalletService {
 	WalletDto getWalletByUserId(Long userId);
 	WalletDto deposit(Long userId, BigDecimal amount);
 	WalletDto withdraw(Long userId, BigDecimal amount);
+	WalletDto settleBid(BidSettlementRequest request);
 }

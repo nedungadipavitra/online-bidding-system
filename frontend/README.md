@@ -1,5 +1,10 @@
 # React + Vite
 
+## Application configuration
+
+API requests use the gateway URL from `VITE_API_BASE_URL`. If it is not set,
+the frontend uses `http://localhost:8080` for local development.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

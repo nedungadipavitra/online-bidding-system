@@ -32,6 +32,13 @@ public class RouteValidator {
         String requestPath = request.getURI().getPath();
         String requestMethod = request.getMethod().name();
 
+        // The initial WebSocket/SockJS handshake does not carry the STOMP
+        // Authorization header. Authentication is performed by the bid
+        // service when it receives the authenticated STOMP CONNECT frame.
+        if ("/ws".equals(requestPath) || requestPath.startsWith("/ws/")) {
+            return false;
+        }
+
         for (PublicEndpoint endpoint : publicEndpoints) {
             boolean pathMatches = pathMatcher.match(endpoint.pathPattern, requestPath);
             boolean methodMatches = endpoint.method == null || endpoint.method.equalsIgnoreCase(requestMethod);
