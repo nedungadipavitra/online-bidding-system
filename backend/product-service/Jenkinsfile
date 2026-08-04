@@ -163,9 +163,21 @@ pipeline {
           usernameVariable: 'AWS_ACCESS_KEY_ID',
           passwordVariable: 'AWS_SECRET_ACCESS_KEY'
         )]) {
+          // Unset temporary-credential vars: empty/stale AWS_SESSION_TOKEN causes
+          // UnrecognizedClientException even with valid Access Key + Secret.
           sh """
-            set -e
-            aws ecr get-login-password --region "${env.RESOLVED_REGION}" \
+            set -euo pipefail
+            unset AWS_SESSION_TOKEN AWS_SECURITY_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE || true
+            export AWS_ACCESS_KEY_ID="\$(printf '%s' "\$AWS_ACCESS_KEY_ID" | tr -d '[:space:]')"
+            export AWS_SECRET_ACCESS_KEY="\$(printf '%s' "\$AWS_SECRET_ACCESS_KEY" | tr -d '[:space:]')"
+
+            echo "AWS key id length=\${#AWS_ACCESS_KEY_ID} (IAM long-term keys are usually 20 chars, start with AKIA)"
+            echo "AWS secret length=\${#AWS_SECRET_ACCESS_KEY} (usually ~40 chars)"
+
+            # Clear error if obs-aws-deploy still has wrong values
+            aws sts get-caller-identity --region "${params.AWS_REGION}"
+
+            aws ecr get-login-password --region "${params.AWS_REGION}" \
               | docker login --username AWS --password-stdin "${env.ECR_REGISTRY}"
           """
         }
