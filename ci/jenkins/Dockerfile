@@ -31,13 +31,11 @@ RUN apt-get update \
     && /tmp/aws/install \
     && rm -rf /tmp/aws /tmp/awscliv2.zip /var/lib/apt/lists/*
 
-# Allow the jenkins user to talk to the host Docker socket (Docker Desktop / Linux).
-# Group GID is adjusted at container start in docker-compose entrypoint-style command when needed.
+# docker group for non-root use; docker-compose also runs as root for Docker Desktop sock access.
 RUN groupadd -f docker \
     && usermod -aG docker jenkins
 
-USER jenkins
-
-# Install pipeline plugins from plugins.txt at image build time (faster first boot).
+# Stay root for plugin install tooling; compose sets user=root for docker.sock on Desktop.
+# Plugins still install into /usr/share/jenkins/ref (copied into JENKINS_HOME on first boot).
 COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
 RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt

@@ -1,9 +1,9 @@
-# Minimal local Jenkins for OBS monorepo pipelines.
+# Minimal local Jenkins for OBS pipelines (Docker Desktop / WSL2).
 # Usage (from monorepo root):
 #   docker compose -f ci/jenkins/docker-compose.yml up -d --build
-# UI: http://localhost:9090  (9090 avoids clash with api-gateway :8080)
+# UI: http://localhost:9090
 #
-# Host Docker socket is mounted so "docker build/push" inside Jenkins use Docker Desktop.
+# Host Docker socket is mounted so builds use Docker Desktop's engine.
 
 services:
   jenkins:
@@ -11,20 +11,22 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: obs-jenkins
+    # Docker Desktop mounts docker.sock as root-only for the default jenkins user.
+    # For local CI, run controller as root so docker CLI can call the API.
+    # (Do not use this pattern on a multi-tenant shared Jenkins.)
+    user: root
     ports:
-      # Map host 9090 → Jenkins HTTP 8080 inside the container.
       - "9090:8080"
       - "50000:50000"
     environment:
-      # Skip first-run setup wizard only when you already know the approach;
-      # leave disabled for a normal first boot (recommended).
-      # JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
       JAVA_OPTS: "-Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true"
+      # Jenkins home when running as root still uses the same volume path.
     volumes:
-      # Persist jobs, credentials, plugin state across restarts.
       - obs_jenkins_home:/var/jenkins_home
-      # Docker Desktop (Windows/Mac/Linux): build/push use the host engine.
       - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      # Extra: membership for engines that expose a docker group on the socket.
+      - "0"
     restart: unless-stopped
 
 volumes:
