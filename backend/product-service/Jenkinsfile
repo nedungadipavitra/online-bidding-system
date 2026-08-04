@@ -96,12 +96,18 @@ pipeline {
       }
       steps {
         dir(env.SERVICE_DIR) {
-          sh 'mvn -B test'
+          // clean avoids stale surefire XML from earlier failed runs marking the build UNSTABLE
+          sh 'mvn -B clean test'
         }
       }
       post {
         always {
-          junit allowEmptyResults: true, testResults: "${SERVICE_DIR}/target/surefire-reports/*.xml"
+          // Record results for the Trends chart, but do not flip a green pipeline to yellow
+          // when the only issue is junit health thresholds / leftover reports.
+          // Real test failures still fail this stage (Maven exit code ≠ 0).
+          junit allowEmptyResults: true,
+                skipMarkingBuildUnstable: true,
+                testResults: "${SERVICE_DIR}/target/surefire-reports/*.xml"
         }
       }
     }
