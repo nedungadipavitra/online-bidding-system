@@ -1,6 +1,7 @@
 package com.onlinebidding.bid_service.controller;
 
 import com.onlinebidding.bid_service.dto.BidDto;
+import com.onlinebidding.bid_service.security.WebSocketUserPrincipal;
 import com.onlinebidding.bid_service.service.BidService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
@@ -9,6 +10,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 
+import java.security.Principal;
 import java.util.Map;
 
 @Controller
@@ -24,7 +26,13 @@ public class BidWebSocketController {
     }
 
     @MessageMapping("/place-bid")
-    public void placeBid(BidDto bidDto) {
+    public void placeBid(BidDto bidDto, Principal principal) {
+        if (!(principal instanceof WebSocketUserPrincipal userPrincipal)
+                || !"BUYER".equalsIgnoreCase(userPrincipal.getRole())) {
+            throw new IllegalArgumentException("Only authenticated buyers can place bids.");
+        }
+
+        bidDto.setBidderId(userPrincipal.getUserId());
         // Place the bid
         BidDto placedBid = bidService.placeBid(bidDto);
         // Broadcast to all clients subscribed to this auction

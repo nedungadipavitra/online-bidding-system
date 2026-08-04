@@ -1,17 +1,19 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import Navbar from "./components/Navbar";
-import Home from "./pages/Home";
-import SellerDashboard from "./pages/SellerDashboard";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import BuyerDashboard from "./pages/BuyerDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
-import ProductDescription from "./pages/ProductDescription";
-import DeliveryDashboard from "./pages/DeliveryDashboard";
-import MyWallet from "./pages/MyWallet";
-import AdminDashboard from "./pages/AdminDashboard";
-import MyOrders from "./pages/MyOrders";
+
+const Home = lazy(() => import("./pages/Home"));
+const SellerDashboard = lazy(() => import("./pages/SellerDashboard"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const BuyerDashboard = lazy(() => import("./pages/BuyerDashboard"));
+const ProductDescription = lazy(() => import("./pages/ProductDescription"));
+const DeliveryDashboard = lazy(() => import("./pages/DeliveryDashboard"));
+const MyWallet = lazy(() => import("./pages/MyWallet"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const MyOrders = lazy(() => import("./pages/MyOrders"));
 
 function App() {
   return (
@@ -26,7 +28,8 @@ function App() {
         <Navbar />
 
         <div className="app-content">
-          <Routes>
+          <Suspense fallback={<div className="main-content container py-5 text-center">Loading...</div>}>
+            <Routes>
             <Route path="/" element={<Home />} />
 
             <Route
@@ -98,7 +101,8 @@ function App() {
             />
 
             <Route path="/product/:id" element={<ProductDescription />} />
-          </Routes>
+            </Routes>
+          </Suspense>
         </div>
       </div>
     </Router>

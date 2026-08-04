@@ -59,7 +59,7 @@ class AuthenticationFilterTest {
     @Test
     void whenRequestToSecuredRouteWithoutToken_returns401() {
         webTestClient.get()
-                .uri("/products/1")
+                .uri("/orders/1")
                 .exchange()
                 .expectStatus().isUnauthorized();
     }
@@ -67,7 +67,7 @@ class AuthenticationFilterTest {
     @Test
     void whenRequestToSecuredRouteWithInvalidTokenFormat_returns401() {
         webTestClient.get()
-                .uri("/products/1")
+                .uri("/orders/1")
                 .header(HttpHeaders.AUTHORIZATION, "InvalidFormat")
                 .exchange()
                 .expectStatus().isUnauthorized();
@@ -78,7 +78,7 @@ class AuthenticationFilterTest {
         String expiredToken = generateToken(1L, "USER", "user@example.com", -1000L);
 
         webTestClient.get()
-                .uri("/products/1")
+                .uri("/orders/1")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + expiredToken)
                 .exchange()
                 .expectStatus().isUnauthorized();
@@ -89,7 +89,7 @@ class AuthenticationFilterTest {
         String validToken = generateToken(1L, "USER", "user@example.com", 60000L);
 
         webTestClient.get()
-                .uri("/products/1")
+                .uri("/orders/1")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + validToken)
                 .exchange()
                 .expectStatus().value(status -> {
@@ -101,6 +101,16 @@ class AuthenticationFilterTest {
     void whenRequestToPublicRouteWithoutToken_passesFilter() {
         webTestClient.post()
                 .uri("/auth/login")
+                .exchange()
+                .expectStatus().value(status -> {
+                    assertThat(status).isNotEqualTo(401);
+                });
+    }
+
+    @Test
+    void whenRequestToWebSocketHandshakeWithoutToken_passesGatewayAuthenticationFilter() {
+        webTestClient.get()
+                .uri("/ws/info")
                 .exchange()
                 .expectStatus().value(status -> {
                     assertThat(status).isNotEqualTo(401);
@@ -122,7 +132,7 @@ class AuthenticationFilterTest {
         String token = generateToken(null, "USER", "user@example.com", 60000L);
 
         webTestClient.get()
-                .uri("/products/1")
+                .uri("/orders/1")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .exchange()
                 .expectStatus().isUnauthorized();
@@ -140,7 +150,7 @@ class AuthenticationFilterTest {
                 .compact();
 
         webTestClient.get()
-                .uri("/products/1")
+                .uri("/orders/1")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .exchange()
                 .expectStatus().isUnauthorized();

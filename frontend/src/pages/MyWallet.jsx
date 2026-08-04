@@ -1,35 +1,44 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import LoadingState from "../components/LoadingState";
+import { apiFetch, getResponseMessage } from "../api/client";
 
 function MyWallet({ role }) {
   const navigate = useNavigate();
   const [wallet, setWallet] = useState(null);
   const [amount, setAmount] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAddingMoney, setIsAddingMoney] = useState(false);
 
-  const loadWallet = async () => {
+  const loadWallet = useCallback(async () => {
     const userId = sessionStorage.getItem("loggedInUserId");
     const token = sessionStorage.getItem("token");
-    if (!userId) return;
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
 
+    setIsLoading(true);
     try {
-      const walletRes = await fetch(`http://localhost:8080/wallets/user/${userId}`, {
+      const walletRes = await apiFetch(`/wallets/user/${userId}`, {
         headers: {
           "Authorization": token ? `Bearer ${token}` : ""
         }
       });
+
       if (walletRes.ok) {
         const walletData = await walletRes.json();
-
-        const txRes = await fetch(`http://localhost:8080/transactions/user/${userId}`, {
+        const txRes = await apiFetch(`/transactions/user/${userId}`, {
           headers: {
             "Authorization": token ? `Bearer ${token}` : ""
           }
         });
         const txData = txRes.ok ? await txRes.json() : [];
 
-        const mappedTx = txData.map(tx => ({
-          type: tx.type === "DEPOSIT" ? "Deposit" : "Withdrawal",
-          amount: tx.type === "DEPOSIT" ? Number(tx.amount) : -Number(tx.amount),
+        const mappedTx = txData.map((tx) => ({
+          type: tx.type === "DEPOSIT" ? "Deposit" : tx.type === "REFUND" ? "Refund" : "Withdrawal",
+          amount: tx.type === "DEPOSIT" || tx.type === "REFUND" ? Number(tx.amount) : -Number(tx.amount),
           date: new Date(tx.timestamp).toLocaleDateString("en-IN", {
             day: "numeric",
             month: "short",
@@ -42,7 +51,6 @@ function MyWallet({ role }) {
           transactions: mappedTx
         });
       } else {
-        // If wallet doesn't exist, set fallback empty state
         setWallet({
           balance: 0,
           transactions: []
@@ -50,53 +58,62 @@ function MyWallet({ role }) {
       }
     } catch (error) {
       console.error("Error fetching wallet data:", error);
+      toast.error("Unable to load wallet data.");
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    // The callback performs external data loading and updates state after its async responses.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWallet();
-  }, [role]);
+  }, [role, loadWallet]);
 
   const handleAddMoneySubmit = async (e) => {
     e.preventDefault();
     const numericAmount = parseFloat(amount);
-    if (!isNaN(numericAmount) && numericAmount > 0) {
-      const userId = sessionStorage.getItem("loggedInUserId");
-      const token = sessionStorage.getItem("token");
-      if (!userId) return;
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      toast.error("Please enter a valid amount.");
+      return;
+    }
 
-      try {
-        const response = await fetch(`http://localhost:8080/wallets/${userId}/deposit`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": token ? `Bearer ${token}` : ""
-          },
-          body: JSON.stringify({
-            amount: numericAmount
-          })
-        });
+    const userId = sessionStorage.getItem("loggedInUserId");
+    const token = sessionStorage.getItem("token");
+    if (!userId) return;
 
-        if (response.ok) {
-          setAmount("");
-          loadWallet(); // refresh state
-          alert(`Successfully added ₹${numericAmount.toLocaleString("en-IN")} to your wallet!`);
-        } else {
-          alert("Failed to add money");
-        }
-      } catch (error) {
-        console.error("Deposit error:", error);
-        alert("Error connecting to server");
+    setIsAddingMoney(true);
+    try {
+      const response = await apiFetch(`/wallets/${userId}/deposit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": token ? `Bearer ${token}` : ""
+        },
+        body: JSON.stringify({
+          amount: numericAmount
+        })
+      });
+
+      if (response.ok) {
+        setAmount("");
+        await loadWallet();
+        toast.success(`Successfully added Rs. ${numericAmount.toLocaleString("en-IN")} to your wallet.`);
+      } else {
+        toast.error(await getResponseMessage(response, "Failed to add money."));
       }
-    } else {
-      alert("Please enter a valid amount.");
+    } catch (error) {
+      console.error("Deposit error:", error);
+      toast.error("Error connecting to server.");
+    } finally {
+      setIsAddingMoney(false);
     }
   };
 
-  if (!wallet) {
+  if (isLoading && !wallet) {
     return (
       <div className="main-content container py-4 text-center">
-        <h3>Loading wallet data...</h3>
+        <LoadingState message="Loading wallet data..." />
       </div>
     );
   }
@@ -113,15 +130,13 @@ function MyWallet({ role }) {
         </button>
       </div>
 
-      {/* Balance Card */}
       <div className="card text-white bg-dark mb-4 shadow-sm">
         <div className="card-body p-4 text-center">
           <span className="text-uppercase tracking-wider small text-white-50">Available Balance</span>
-          <h2 className="display-5 fw-bold my-2">₹{wallet.balance.toLocaleString("en-IN")}</h2>
+          <h2 className="display-5 fw-bold my-2">Rs. {wallet.balance.toLocaleString("en-IN")}</h2>
         </div>
       </div>
 
-      {/* Add Money Form (Only for Buyer) */}
       {role === "buyer" && (
         <div className="card p-4 border shadow-sm mb-4">
           <h5 className="fw-bold mb-3">Add Money to Wallet</h5>
@@ -129,7 +144,7 @@ function MyWallet({ role }) {
             <div className="col-sm-9">
               <label className="form-label text-secondary small">Amount (INR)</label>
               <div className="input-group">
-                <span className="input-group-text bg-white">₹</span>
+                <span className="input-group-text bg-white">Rs.</span>
                 <input
                   type="number"
                   className="form-control"
@@ -141,15 +156,19 @@ function MyWallet({ role }) {
               </div>
             </div>
             <div className="col-sm-3">
-              <button type="submit" className="btn btn-primary w-100 py-2">
-                Add Money
+              <button type="submit" className="btn btn-primary w-100 py-2" disabled={isAddingMoney}>
+                {isAddingMoney ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                    Adding...
+                  </>
+                ) : "Add Money"}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Transactions list */}
       <div className="card border shadow-sm">
         <div className="card-header bg-white fw-bold py-3">
           Recent Transactions
@@ -175,7 +194,7 @@ function MyWallet({ role }) {
                       <td className="px-4 py-3">{tx.type}</td>
                       <td className="py-3 text-muted">{tx.date}</td>
                       <td className={`px-4 py-3 text-end fw-bold ${tx.amount > 0 ? "text-success" : "text-danger"}`}>
-                        {tx.amount > 0 ? "+" : ""}₹{tx.amount.toLocaleString("en-IN")}
+                        {tx.amount > 0 ? "+" : ""}Rs. {tx.amount.toLocaleString("en-IN")}
                       </td>
                     </tr>
                   ))

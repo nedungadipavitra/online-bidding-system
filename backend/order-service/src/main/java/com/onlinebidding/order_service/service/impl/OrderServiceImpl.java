@@ -65,6 +65,14 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<OrderDto> getOrdersBySeller(Long sellerId) {
+        return orderRepository.findBySellerId(sellerId).stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<OrderDto> getOrdersByDeliveryPerson(Long deliveryPersonId) {
         return orderRepository.findByDeliveryPersonId(deliveryPersonId).stream()
                 .map(this::mapToDto)

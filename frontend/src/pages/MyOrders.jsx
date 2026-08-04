@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import LoadingState from "../components/LoadingState";
 import iphoneImg from "../assets/iphone.jpeg";
 import macbookImg from "../assets/macbook.png";
 import ps6Img from "../assets/ps6.png";
+import { apiJson } from "../api/client";
+import { createRequestCache } from "../api/resources";
 
 const imageMap = {
   "iphone.jpeg": iphoneImg,
@@ -13,104 +17,77 @@ const imageMap = {
 function MyOrders() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchOrders = async () => {
       const userId = sessionStorage.getItem("loggedInUserId");
-      const token = sessionStorage.getItem("token");
-      if (!userId) return;
+      if (!userId) {
+        setIsLoading(false);
+        return;
+      }
 
+      setIsLoading(true);
       try {
-        const response = await fetch(`http://localhost:8080/orders/buyer/${userId}`, {
-          headers: {
-            "Authorization": token ? `Bearer ${token}` : ""
-          }
-        });
-        
-        let dbOrders = [];
-        if (response.ok) {
-          dbOrders = await response.json();
-        }
+        const [initialOrders, products] = await Promise.all([
+          apiJson(`/orders/buyer/${userId}`).catch(() => []),
+          apiJson("/products").catch(() => [])
+        ]);
+        const dbOrders = [...initialOrders];
+        const productsById = new Map(products.map((product) => [Number(product.productId), product]));
+        const endedProductIds = products
+          .filter((product) => new Date(product.auctionEndTime) <= new Date())
+          .map((product) => product.productId);
+        const highestBids = await createRequestCache()
+          .getHighestBids(endedProductIds)
+          .catch(() => ({}));
 
-        const prodRes = await fetch("http://localhost:8080/products", {
-          headers: {
-            "Authorization": token ? `Bearer ${token}` : ""
-          }
-        });
+        const pendingOrders = products
+          .map((product) => ({ product, bid: highestBids[product.productId] }))
+          .filter(({ product, bid }) =>
+            new Date(product.auctionEndTime) <= new Date()
+            && bid
+            && String(bid.bidderId) === String(userId)
+            && !dbOrders.some((order) => Number(order.productId) === Number(product.productId))
+          );
 
-        if (prodRes.ok) {
-          const products = await prodRes.json();
-          for (const p of products) {
-            if (new Date(p.auctionEndTime) <= new Date()) {
-              const bidRes = await fetch(`http://localhost:8080/bids/auction/${p.productId}/highest`, {
-                headers: {
-                  "Authorization": token ? `Bearer ${token}` : ""
-                }
-              });
-              if (bidRes.ok) {
-                const bidData = await bidRes.json();
-                if (bidData && String(bidData.bidderId) === String(userId)) {
-                  const orderExists = dbOrders.some(o => Number(o.productId) === Number(p.productId));
-                  if (!orderExists) {
-                    const createRes = await fetch("http://localhost:8080/orders", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": token ? `Bearer ${token}` : ""
-                      },
-                      body: JSON.stringify({
-                        productId: p.productId,
-                        buyerId: Number(userId),
-                        sellerId: p.sellerId,
-                        finalPrice: bidData.amount,
-                        status: "PENDING"
-                      })
-                    });
-                    if (createRes.ok) {
-                      const newOrder = await createRes.json();
-                      dbOrders.push(newOrder);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        const mapped = await Promise.all(dbOrders.map(async (order) => {
-          let productName = "Product";
-          let image = "";
-          
+        const createdOrders = await Promise.all(pendingOrders.map(async ({ product, bid }) => {
           try {
-            const prodDetailRes = await fetch(`http://localhost:8080/products/${order.productId}`, {
-              headers: {
-                "Authorization": token ? `Bearer ${token}` : ""
-              }
+            return await apiJson("/orders", {
+              method: "POST",
+              body: JSON.stringify({
+                productId: product.productId,
+                buyerId: Number(userId),
+                sellerId: product.sellerId,
+                finalPrice: bid.amount,
+                status: "PENDING"
+              })
             });
-            if (prodDetailRes.ok) {
-              const prodData = await prodDetailRes.json();
-              if (prodData) {
-                productName = prodData.name;
-                image = prodData.imageUrl;
-              }
-            }
-          } catch (e) {
-            console.error(e);
+          } catch (error) {
+            console.error("Error creating order:", error);
+            return null;
           }
+        }));
+        dbOrders.push(...createdOrders.filter(Boolean));
 
+        const mapped = dbOrders.map((order) => {
+          const product = productsById.get(Number(order.productId));
           return {
             id: order.id,
-            productName: productName,
-            image: image,
+            productName: product?.name || "Product",
+            image: product?.imageUrl || "",
             price: order.finalPrice,
             status: order.status,
             deliveryPersonName: order.deliveryPersonName || "Not Assigned",
             estimatedDelivery: order.estimatedDelivery
           };
-        }));
+        });
         setOrders(mapped);
       } catch (error) {
         console.error("Error fetching orders:", error);
+        toast.error("Unable to load your orders.");
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -158,7 +135,13 @@ function MyOrders() {
                 </tr>
               </thead>
               <tbody>
-                {orders.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="5">
+                      <LoadingState message="Loading your orders..." compact />
+                    </td>
+                  </tr>
+                ) : orders.length === 0 ? (
                   <tr>
                     <td colSpan="5" className="text-center py-5 text-muted">No orders placed yet.</td>
                   </tr>

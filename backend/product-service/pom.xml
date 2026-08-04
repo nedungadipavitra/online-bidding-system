@@ -85,7 +85,14 @@
 	<build> <!--Here there was a build error regarding map struct, the map struct impl was not being made due to which the bean of product mapper was not getting created-->
 		<!--which was causing the build to fail-->
 		<!--solution: we added the execution path to maven plugin for default compile-->
-		<plugins>
+	<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>-javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</argLine>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>

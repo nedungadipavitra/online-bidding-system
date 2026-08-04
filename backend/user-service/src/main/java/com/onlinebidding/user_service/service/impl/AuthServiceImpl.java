@@ -9,6 +9,10 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.Map;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import com.onlinebidding.user_service.dto.LoginRequest;
 import com.onlinebidding.user_service.dto.LoginResponse;
 import com.onlinebidding.user_service.dto.RefreshTokenRequest;
@@ -37,6 +41,12 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final RestTemplate restTemplate;
+
+    @Value("${wallet.service-url:http://localhost:8083}")
+    private String walletServiceUrl;
+
+    @Value("${wallet.internal-token}")
+    private String walletInternalToken;
 
     @Override
     public RegisterResponse register(RegisterRequest request) {
@@ -67,14 +77,19 @@ public class AuthServiceImpl implements AuthService {
 
         User savedUser = userRepository.save(user);
 
-        if (role == Role.BUYER) {
+        if (role == Role.BUYER || role == Role.SELLER) {
             try {
-                String walletServiceUrl = "http://localhost:8083/wallets/create";
                 Map<String, Object> walletRequest = Map.of(
                         "userId", savedUser.getId(),
                         "initialBalance", BigDecimal.ZERO
                 );
-                restTemplate.postForObject(walletServiceUrl, walletRequest, Object.class);
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("X-Internal-Service-Token", walletInternalToken);
+                restTemplate.postForObject(
+                        walletServiceUrl + "/wallets/create",
+                        new HttpEntity<>(walletRequest, headers),
+                        Object.class);
             } catch (Exception e) {
                 System.err.println("Failed to auto-create wallet: " + e.getMessage());
                 e.printStackTrace();
