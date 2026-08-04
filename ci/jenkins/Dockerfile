@@ -1,14 +1,8 @@
-# Minimal Jenkins controller that can run OBS service pipelines locally.
-# Extends official LTS so we do not install Jenkins on the host OS.
+# Minimal Jenkins controller for OBS pipelines (Docker Desktop / WSL2).
 FROM jenkins/jenkins:lts-jdk21
 
 USER root
 
-# Tools expected by jenkins/obs-service-pipeline.groovy on "agent any"
-# - docker-cli talks to the host Docker daemon via mounted docker.sock
-# - maven builds Spring Boot modules
-# - awscli logs into ECR
-# - openssh-client used by scp/ssh deploy stages
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -29,13 +23,15 @@ RUN apt-get update \
     && curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
     && unzip -q /tmp/awscliv2.zip -d /tmp \
     && /tmp/aws/install \
-    && rm -rf /tmp/aws /tmp/awscliv2.zip /var/lib/apt/lists/*
-
-# docker group for non-root use; docker-compose also runs as root for Docker Desktop sock access.
-RUN groupadd -f docker \
+    && rm -rf /tmp/aws /tmp/awscliv2.zip /var/lib/apt/lists/* \
+    && groupadd -f docker \
     && usermod -aG docker jenkins
 
-# Stay root for plugin install tooling; compose sets user=root for docker.sock on Desktop.
-# Plugins still install into /usr/share/jenkins/ref (copied into JENKINS_HOME on first boot).
 COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
 RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
+
+# Entrypoint: fix docker.sock perms, then drop to jenkins user (needed for git checkout).
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
