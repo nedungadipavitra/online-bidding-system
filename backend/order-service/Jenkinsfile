@@ -1,0 +1,22 @@
+// =============================================================================
+// order-service Jenkins Pipeline
+// Script Path: backend/order-service/Jenkinsfile
+// =============================================================================
+
+def cfg = [
+  serviceName      : 'order-service',
+  ecrRepo          : 'obs/order-service',
+  containerPort    : '8084',
+  healthEndpoint   : '/orders',
+  require2xxHealth : true,
+  remoteEnvFile    : '/opt/obs/env/order.env',
+  awsRegion        : 'ap-south-1',
+  ec2User          : 'ec2-user',
+]
+
+def runner
+node {
+  checkout scm
+  runner = load 'jenkins/obs-service-pipeline.groovy'
+}
+runner.run(cfg)

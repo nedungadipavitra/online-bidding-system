@@ -1,5 +1,13 @@
-target/*.original 
-.git 
-.idea 
-.vscode 
+# Reduce Docker build context size and keep secrets / local artifacts out of the image.
+target/
+!target/.gitkeep
+.git
+.idea
+.vscode
 *.iml
+*.tar
+*.zip
+*.log
+.mvn/wrapper/maven-wrapper.jar
+mvnw
+mvnw.cmd

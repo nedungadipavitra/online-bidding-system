@@ -1,0 +1,31 @@
+# Minimal local Jenkins for OBS monorepo pipelines.
+# Usage (from monorepo root):
+#   docker compose -f ci/jenkins/docker-compose.yml up -d --build
+# UI: http://localhost:9090  (9090 avoids clash with api-gateway :8080)
+#
+# Host Docker socket is mounted so "docker build/push" inside Jenkins use Docker Desktop.
+
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: obs-jenkins
+    ports:
+      # Map host 9090 → Jenkins HTTP 8080 inside the container.
+      - "9090:8080"
+      - "50000:50000"
+    environment:
+      # Skip first-run setup wizard only when you already know the approach;
+      # leave disabled for a normal first boot (recommended).
+      # JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
+      JAVA_OPTS: "-Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true"
+    volumes:
+      # Persist jobs, credentials, plugin state across restarts.
+      - obs_jenkins_home:/var/jenkins_home
+      # Docker Desktop (Windows/Mac/Linux): build/push use the host engine.
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+volumes:
+  obs_jenkins_home:

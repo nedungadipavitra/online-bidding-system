@@ -1,0 +1,22 @@
+// =============================================================================
+// api-gateway Jenkins Pipeline
+// Script Path: backend/api-gateway/Jenkinsfile
+// =============================================================================
+
+def cfg = [
+  serviceName      : 'api-gateway',
+  ecrRepo          : 'obs/api-gateway',
+  containerPort    : '8080',
+  healthEndpoint   : '/actuator/gateway',
+  require2xxHealth : true,
+  remoteEnvFile    : '/opt/obs/env/api-gateway.env',
+  awsRegion        : 'ap-south-1',
+  ec2User          : 'ec2-user',
+]
+
+def runner
+node {
+  checkout scm
+  runner = load 'jenkins/obs-service-pipeline.groovy'
+}
+runner.run(cfg)

@@ -118,3 +118,6 @@ docker-compose.override.yml
 # Kubernetes
 ##############################################
 *.kubeconfig
+
+# AI Project Memory (local only)
+.projectMate/

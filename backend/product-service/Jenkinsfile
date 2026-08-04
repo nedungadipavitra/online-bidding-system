@@ -1,0 +1,27 @@
+// =============================================================================
+// product-service Jenkins Pipeline
+// =============================================================================
+// Script Path: backend/product-service/Jenkinsfile
+// Shared stages: jenkins/obs-service-pipeline.groovy
+// =============================================================================
+
+def cfg = [
+  serviceName      : 'product-service',
+  ecrRepo          : 'obs/product-service',
+  containerPort    : '8082',
+  healthEndpoint   : '/products',
+  require2xxHealth : true,
+  remoteEnvFile    : '',
+  awsRegion        : 'ap-south-1',
+  ec2User          : 'ec2-user',
+]
+
+// load needs a workspace (FilePath). Lightweight SCM checkout of this Jenkinsfile
+// alone does not provide that — allocate a node, full checkout, then load.
+// Call runner.run() OUTSIDE this node so Declarative agent any is not nested.
+def runner
+node {
+  checkout scm
+  runner = load 'jenkins/obs-service-pipeline.groovy'
+}
+runner.run(cfg)

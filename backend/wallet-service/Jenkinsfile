@@ -1,0 +1,22 @@
+// =============================================================================
+// wallet-service Jenkins Pipeline
+// Script Path: backend/wallet-service/Jenkinsfile
+// =============================================================================
+
+def cfg = [
+  serviceName      : 'wallet-service',
+  ecrRepo          : 'obs/wallet-service',
+  containerPort    : '8083',
+  healthEndpoint   : '/wallets',
+  require2xxHealth : true,
+  remoteEnvFile    : '/opt/obs/env/wallet.env',
+  awsRegion        : 'ap-south-1',
+  ec2User          : 'ec2-user',
+]
+
+def runner
+node {
+  checkout scm
+  runner = load 'jenkins/obs-service-pipeline.groovy'
+}
+runner.run(cfg)

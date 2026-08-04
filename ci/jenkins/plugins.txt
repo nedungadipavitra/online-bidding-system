@@ -1,0 +1,12 @@
+# Plugin IDs for config-as-code style install on first boot.
+# Keep minimal — only what the OBS service pipeline uses.
+workflow-aggregator
+git
+credentials-binding
+ssh-agent
+lockable-resources
+timestamper
+junit
+pipeline-stage-view
+ws-cleanup
+configuration-as-code

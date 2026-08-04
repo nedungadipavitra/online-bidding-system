@@ -1,0 +1,22 @@
+// =============================================================================
+// bid-service Jenkins Pipeline
+// Script Path: backend/bid-service/Jenkinsfile
+// =============================================================================
+
+def cfg = [
+  serviceName      : 'bid-service',
+  ecrRepo          : 'obs/bid-service',
+  containerPort    : '8085',
+  healthEndpoint   : '/bids',
+  require2xxHealth : true,
+  remoteEnvFile    : '/opt/obs/env/bid.env',
+  awsRegion        : 'ap-south-1',
+  ec2User          : 'ec2-user',
+]
+
+def runner
+node {
+  checkout scm
+  runner = load 'jenkins/obs-service-pipeline.groovy'
+}
+runner.run(cfg)
