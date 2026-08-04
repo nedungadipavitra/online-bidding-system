@@ -17,9 +17,11 @@ spring:
     hibernate: 
       ddl-auto: update
 
+  # Required only for prod (Docker/Jenkins deploy sets SPRING_PROFILES_ACTIVE=prod).
+  # Unit tests use default profile + H2 and must NOT hit Parameter Store.
   config: 
     import: 
-      aws-parameterstore:/obs/prod/
+      - aws-parameterstore:/obs/prod/
  
   servlet:
     multipart: 
