@@ -123,12 +123,10 @@ RUN_ARGS=(
   -e "SERVER_PORT=${CONTAINER_PORT}"
 )
 
-# product-service load path: force prod profile + region (SSM/S3 use the default provider chain / instance profile).
-if [[ "$SERVICE_NAME" == "product-service" ]]; then
-  RUN_ARGS+=(-e "SPRING_PROFILES_ACTIVE=prod")
-  # Do not hardcode secrets; region is not secret but must match Parameter Store path region.
-  RUN_ARGS+=(-e "AWS_REGION=${AWS_REGION:-ap-south-1}")
-fi
+# Prod profile + region for all OBS services (SSM/S3 use instance profile / default provider chain).
+# Secrets stay in Parameter Store — do not put them in EXTRA_ENV or a host env-file unless needed.
+RUN_ARGS+=(-e "SPRING_PROFILES_ACTIVE=prod")
+RUN_ARGS+=(-e "AWS_REGION=${AWS_REGION:-ap-south-1}")
 
 if [[ -n "$ENV_FILE" ]]; then
   [[ -f "$ENV_FILE" ]] || die "env-file not found on host: $ENV_FILE"

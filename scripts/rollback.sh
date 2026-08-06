@@ -109,10 +109,8 @@ RUN_ARGS=(
   -e "SERVER_PORT=${CONTAINER_PORT}"
 )
 
-if [[ "$SERVICE_NAME" == "product-service" ]]; then
-  RUN_ARGS+=(-e "SPRING_PROFILES_ACTIVE=prod")
-  RUN_ARGS+=(-e "AWS_REGION=${AWS_REGION:-ap-south-1}")
-fi
+RUN_ARGS+=(-e "SPRING_PROFILES_ACTIVE=prod")
+RUN_ARGS+=(-e "AWS_REGION=${AWS_REGION:-ap-south-1}")
 
 if [[ -n "$ENV_FILE" ]]; then
   [[ -f "$ENV_FILE" ]] || die "env-file not found on host: $ENV_FILE"

@@ -31,7 +31,7 @@ pipeline {
     string(name: 'EC2_USER', defaultValue: 'ubuntu', description: 'SSH user (Ubuntu AMI)')
     string(name: 'AWS_REGION', defaultValue: 'ap-south-1', description: 'ECR region')
     string(name: 'EXTRA_ENV', defaultValue: '', description: 'Optional KEY=V,KEY2=V2 docker -e pairs (no secrets)')
-    string(name: 'REMOTE_ENV_FILE', defaultValue: '/opt/obs/env/api-gateway.env', description: 'Optional env-file path already on EC2')
+    string(name: 'REMOTE_ENV_FILE', defaultValue: '', description: 'Optional env-file path already on EC2 (blank = none; prod uses SSM)')
     booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip unit tests (emergency)')
     booleanParam(name: 'PERFORM_ROLLBACK_ONLY', defaultValue: false, description: 'Only rollback on EC2')
     booleanParam(name: 'REQUIRE_2XX_HEALTH', defaultValue: true, description: 'Health requires 2xx/3xx')
