@@ -25,7 +25,7 @@ pipeline {
 
   parameters {
     string(name: 'ECR_REPO', defaultValue: 'obs/order-service', description: 'ECR repo name (no registry host)')
-    string(name: 'EC2_HOST', defaultValue: '172.31.14.46', description: 'obs-order-server private IP; blank → credential obs-ec2-host')
+    string(name: 'EC2_HOST', defaultValue: '172.31.14.46', description: 'obs-fulfillment-instance private IP (order+bid); blank → credential obs-ec2-host')
     string(name: 'CONTAINER_PORT', defaultValue: '8084', description: 'order-service port')
     string(name: 'HEALTH_ENDPOINT', defaultValue: '/orders', description: 'Health path on EC2 loopback')
     string(name: 'EC2_USER', defaultValue: 'ubuntu', description: 'SSH user (Ubuntu AMI)')
