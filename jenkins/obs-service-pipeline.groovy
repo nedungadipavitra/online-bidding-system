@@ -17,7 +17,8 @@
  *   require2xxHealth   boolean — false for user-service auth-style probes
  *   remoteEnvFile      default docker --env-file path on EC2 (optional)
  *   awsRegion          default region (optional, default ap-south-1)
- *   ec2User            default SSH user (optional, default ec2-user)
+ *   ec2User            default SSH user (optional, default ubuntu for Ubuntu AMIs)
+ *   ec2Host            default EC2 private IP / hostname for this service (optional)
  */
 def run(Map cfg) {
   // Fail fast if a service Jenkinsfile forgot required keys.
@@ -34,7 +35,8 @@ def run(Map cfg) {
   def require2xxDef    = (cfg.require2xxHealth != null) ? (cfg.require2xxHealth as Boolean) : true
   def remoteEnvDefault = (cfg.remoteEnvFile ?: '') as String
   def awsRegionDef     = (cfg.awsRegion ?: 'ap-south-1') as String
-  def ec2UserDef       = (cfg.ec2User ?: 'ec2-user') as String
+  def ec2UserDef       = (cfg.ec2User ?: 'ubuntu') as String
+  def ec2HostDef       = (cfg.ec2Host ?: '') as String
 
   pipeline {
     agent any
@@ -57,8 +59,8 @@ def run(Map cfg) {
       )
       string(
         name: 'EC2_HOST',
-        defaultValue: '',
-        description: 'EC2 host; blank uses Jenkins credential obs-ec2-host'
+        defaultValue: ec2HostDef,
+        description: 'EC2 private IP/host for this service; blank falls back to credential obs-ec2-host'
       )
       string(
         name: 'CONTAINER_PORT',

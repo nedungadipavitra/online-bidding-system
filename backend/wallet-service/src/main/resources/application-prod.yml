@@ -1,0 +1,36 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: wallet-service
+
+  datasource:
+    # Shared RDS obs-db: host/port/user/pass from /obs/prod/; schema is wallet-specific.
+    url: jdbc:mysql://${db.host}:${db.port}/bidding_wallet_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${db.username}
+    password: ${db.password}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Prod only (Docker/Jenkins: SPRING_PROFILES_ACTIVE=prod).
+  # /obs/prod/    → shared db.host, db.port, db.username, db.password
+  # /obs/wallet/  → internal.service-token (no db.* duplicates)
+  config:
+    import:
+      - aws-parameterstore:/obs/prod/
+      - aws-parameterstore:/obs/wallet/
+
+internal:
+  service-token: ${internal.service-token}
+
+# aws.region comes from Parameter Store /obs/prod/aws/region (via /obs/prod/ import).
+# Do not hardcode here — it would override SSM.

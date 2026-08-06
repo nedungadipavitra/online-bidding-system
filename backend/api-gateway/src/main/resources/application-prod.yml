@@ -1,0 +1,91 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  # Prod only (Docker/Jenkins: SPRING_PROFILES_ACTIVE=prod).
+  # Gateway is DB-less. /obs/prod/ can hold shared jwt.secret; /obs/gateway/ holds routes/origins.
+  config:
+    import:
+      - aws-parameterstore:/obs/prod/
+      - aws-parameterstore:/obs/gateway/
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: user-service-register-compat
+              uri: ${user.service-url}
+              predicates:
+                - Path=/register
+              filters:
+                - RewritePath=/register, /auth/register
+            - id: user-service-login-compat
+              uri: ${user.service-url}
+              predicates:
+                - Path=/login
+              filters:
+                - RewritePath=/login, /auth/login
+            - id: user-service-auth
+              uri: ${user.service-url}
+              predicates:
+                - Path=/auth/**
+            - id: user-service-users
+              uri: ${user.service-url}
+              predicates:
+                - Path=/users/**
+            - id: product-service-products
+              uri: ${product.service-url}
+              predicates:
+                - Path=/products/**
+            - id: product-service-categories
+              uri: ${product.service-url}
+              predicates:
+                - Path=/categories/**
+            - id: wallet-service-wallets
+              uri: ${wallet.service-url}
+              predicates:
+                - Path=/wallets/**
+            - id: wallet-service-transactions
+              uri: ${wallet.service-url}
+              predicates:
+                - Path=/transactions/**
+            - id: order-service
+              uri: ${order.service-url}
+              predicates:
+                - Path=/orders/**
+            - id: bid-service
+              uri: ${bid.service-url}
+              predicates:
+                - Path=/bids/**
+            - id: bid-service-websocket
+              uri: ${bid.websocket-url}
+              predicates:
+                - Path=/ws
+            - id: bid-service-sockjs
+              uri: ${bid.service-url}
+              predicates:
+                - Path=/ws/**
+
+jwt:
+  secret: ${jwt.secret}
+
+gateway:
+  public-endpoints: POST:/auth/login,POST:/auth/register,POST:/auth/refresh,POST:/auth/logout,POST:/login,POST:/register,GET:/products/**,GET:/categories/**,GET:/ws,GET:/ws/**
+  allowed-origins: ${gateway.allowed-origins}
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: gateway
+
+# aws.region comes from Parameter Store /obs/prod/aws/region (via /obs/prod/ import).
+# Do not hardcode here — it would override SSM.
