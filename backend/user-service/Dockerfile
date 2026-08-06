@@ -1,9 +1,6 @@
 # -----------------------------------------------------------------------------
 # user-service — multi-stage production image
-# Port: 8081. Spring Security permits /auth/** without JWT.
-# Health: GET /auth/me is permitAll; without Authentication it may not return 2xx.
-#          We accept any HTTP response code (proves the server is listening/routing)
-#          by using curl without --fail and requiring a numeric status.
+# Port: 8081. Health: GET /actuator/health (spring-boot-starter-actuator).
 # -----------------------------------------------------------------------------
 
 FROM maven:3.9.9-eclipse-temurin-21-jammy AS build
@@ -36,9 +33,7 @@ EXPOSE 8081
 
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 
-# No -f: HTTP 4xx still means the process is up (valuable until actuator is added).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
-    CMD code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8081/auth/me") \
-        && test "$code" -ge 100 && test "$code" -lt 500
+    CMD curl -fsS "http://127.0.0.1:8081/actuator/health" >/dev/null || exit 1
 
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

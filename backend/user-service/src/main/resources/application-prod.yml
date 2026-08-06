@@ -38,5 +38,15 @@ wallet:
   service-url: ${wallet.service-url}
   internal-token: ${wallet.internal-token}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
 # aws.region comes from Parameter Store /obs/prod/aws/region (via /obs/prod/ import).
 # Do not hardcode here — it would override SSM.
