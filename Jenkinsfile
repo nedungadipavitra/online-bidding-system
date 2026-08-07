@@ -146,9 +146,12 @@ pipeline {
       steps {
         sh """
           set -e
-          docker push "${env.IMAGE_LATEST}"
+          set -euo pipefail
           docker push "${env.IMAGE_BUILD}"
           docker push "${env.IMAGE_SHA}"
+          if ! docker push "${env.IMAGE_LATEST}"; then
+            echo "WARN: could not push ${env.IMAGE_LATEST} (immutable tag?). Deploy uses ${env.IMAGE_BUILD}"
+          fi
         """
       }
     }
