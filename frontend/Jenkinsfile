@@ -1,0 +1,169 @@
+// =============================================================================
+// frontend — self-contained Declarative Jenkinsfile (NO load)
+// =============================================================================
+// Empty / bootstrap pipeline: build image → push to ECR only.
+// No EC2 deploy / rollback yet (frontend later colocates on obs-edge with gateway).
+//
+// Why no load: Pipeline-from-SCM uses a lightweight checkout of ONLY this file.
+// `load` needs a workspace (FilePath) and caused:
+//   MissingContextVariableException: hudson.FilePath is missing
+//
+// Job setup:
+//   Script Path: frontend/Jenkinsfile
+//   Branch:      */deployment/frontend  (or */deployment/product-service while shared)
+//   Repo:        your fork (nedungadipavitra/online-bidding-system-monorepo)
+//
+// Credentials: obs-aws-deploy, obs-aws-account-id
+// Prerequisite: ECR repository obs/frontend must exist (IAM obs/*).
+// =============================================================================
+
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    disableConcurrentBuilds(abortPrevious: false)
+    buildDiscarder(logRotator(numToKeepStr: '30'))
+    timeout(time: 45, unit: 'MINUTES')
+  }
+
+  parameters {
+    string(name: 'ECR_REPO', defaultValue: 'obs/frontend', description: 'ECR repo name (no registry host)')
+    string(name: 'AWS_REGION', defaultValue: 'ap-south-1', description: 'ECR region')
+    string(
+      name: 'VITE_API_BASE_URL',
+      defaultValue: 'http://3.6.164.251:8080',
+      description: 'Gateway URL baked into the SPA at image build time (edge EIP :8080)'
+    )
+  }
+
+  environment {
+    AWS_CREDENTIALS_ID  = 'obs-aws-deploy'
+    AWS_ACCOUNT_CRED_ID = 'obs-aws-account-id'
+    SERVICE_NAME        = 'frontend'
+    SERVICE_DIR         = 'frontend'
+    IMAGE_TAG_BUILD     = "${env.BUILD_NUMBER}"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+        script {
+          def fullSha = env.GIT_COMMIT ?: sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
+          env.GIT_COMMIT_FULL  = fullSha
+          env.GIT_COMMIT_SHORT = fullSha.take(7)
+          echo "frontend @ ${env.GIT_COMMIT_SHORT}"
+        }
+      }
+    }
+
+    stage('Validate') {
+      steps {
+        script {
+          if (!fileExists("${env.SERVICE_DIR}/package.json")) {
+            error "Missing ${env.SERVICE_DIR}/package.json"
+          }
+          if (!fileExists("${env.SERVICE_DIR}/Dockerfile")) {
+            error "Missing ${env.SERVICE_DIR}/Dockerfile"
+          }
+          if (!fileExists("${env.SERVICE_DIR}/nginx.conf")) {
+            error "Missing ${env.SERVICE_DIR}/nginx.conf"
+          }
+        }
+        sh '''
+          set -e
+          command -v docker >/dev/null || { echo "Docker required"; exit 1; }
+          command -v aws >/dev/null || { echo "AWS CLI required"; exit 1; }
+          docker version
+          aws --version
+        '''
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        script {
+          withCredentials([
+            string(credentialsId: env.AWS_ACCOUNT_CRED_ID, variable: 'AWS_ACCOUNT_ID')
+          ]) {
+            env.RESOLVED_REGION = params.AWS_REGION
+            env.ECR_REGISTRY    = "${AWS_ACCOUNT_ID}.dkr.ecr.${env.RESOLVED_REGION}.amazonaws.com"
+            env.IMAGE_URI       = "${env.ECR_REGISTRY}/${params.ECR_REPO}"
+            env.IMAGE_LATEST    = "${env.IMAGE_URI}:latest"
+            env.IMAGE_BUILD     = "${env.IMAGE_URI}:${env.IMAGE_TAG_BUILD}"
+            env.IMAGE_SHA       = "${env.IMAGE_URI}:${env.GIT_COMMIT_SHORT}"
+          }
+          sh """
+            set -e
+            docker build \
+              --build-arg "VITE_API_BASE_URL=${params.VITE_API_BASE_URL}" \
+              -t "${env.IMAGE_LATEST}" \
+              -t "${env.IMAGE_BUILD}" \
+              -t "${env.IMAGE_SHA}" \
+              "${env.SERVICE_DIR}"
+          """
+        }
+      }
+    }
+
+    stage('Login to ECR') {
+      steps {
+        withCredentials([usernamePassword(
+          credentialsId: env.AWS_CREDENTIALS_ID,
+          usernameVariable: 'AWS_ACCESS_KEY_ID',
+          passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+        )]) {
+          sh """
+            set -euo pipefail
+            unset AWS_SESSION_TOKEN AWS_SECURITY_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE || true
+            export AWS_ACCESS_KEY_ID="\$(printf '%s' "\$AWS_ACCESS_KEY_ID" | tr -d '[:space:]')"
+            export AWS_SECRET_ACCESS_KEY="\$(printf '%s' "\$AWS_SECRET_ACCESS_KEY" | tr -d '[:space:]')"
+
+            echo "AWS key id length=\${#AWS_ACCESS_KEY_ID} (IAM long-term keys are usually 20 chars, start with AKIA)"
+            echo "AWS secret length=\${#AWS_SECRET_ACCESS_KEY} (usually ~40 chars)"
+
+            aws sts get-caller-identity --region "${params.AWS_REGION}"
+
+            aws ecr get-login-password --region "${params.AWS_REGION}" \
+              | docker login --username AWS --password-stdin "${env.ECR_REGISTRY}"
+          """
+        }
+      }
+    }
+
+    stage('Push image') {
+      steps {
+        sh """
+          set -euo pipefail
+          # With ECR tag immutability, :latest cannot be overwritten after the first push.
+          docker push "${env.IMAGE_BUILD}"
+          docker push "${env.IMAGE_SHA}"
+          if ! docker push "${env.IMAGE_LATEST}"; then
+            echo "WARN: could not push ${env.IMAGE_LATEST} (immutable tag?). Use ${env.IMAGE_BUILD}"
+          fi
+        """
+      }
+    }
+
+    // Intentionally empty: EC2 deploy / health / rollback land when FE joins obs-edge.
+    stage('Deploy (stub)') {
+      steps {
+        echo "TODO: deploy frontend to obs-edge (port 80) alongside api-gateway — skipped in empty pipeline"
+        echo "Image ready: ${env.IMAGE_BUILD}"
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "SUCCESS: frontend image pushed → ${env.IMAGE_URI} tags latest/${env.BUILD_NUMBER}/${env.GIT_COMMIT_SHORT}"
+    }
+    failure {
+      echo 'FAILURE: frontend image build or ECR push failed (no EC2 deploy attempted).'
+    }
+    always {
+      sh 'docker logout "${ECR_REGISTRY}" >/dev/null 2>&1 || true'
+    }
+  }
+}
