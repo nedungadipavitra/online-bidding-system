@@ -189,14 +189,16 @@ if (( healthy != 1 )); then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     if [[ -x "${SCRIPT_DIR}/rollback.sh" ]]; then
       # OBS_SKIP_LOCK=1: we already hold the per-service flock; child must not re-lock.
+      # Do not pass --extra-env when empty: rollback uses set -u and ${2:?} rejects "".
       OBS_SKIP_LOCK=1 "${SCRIPT_DIR}/rollback.sh" \
         --service "$SERVICE_NAME" \
         --port "$CONTAINER_PORT" \
         --health "$HEALTH_ENDPOINT" \
-        --extra-env "${EXTRA_ENV}" \
+        ${EXTRA_ENV:+--extra-env "$EXTRA_ENV"} \
         ${ENV_FILE:+--env-file "$ENV_FILE"} \
         --state-dir "$STATE_DIR" \
         --require-2xx "$REQUIRE_2XX" \
+        --image "$PREV_IMAGE" \
         || true
     else
       log "rollback.sh not found next to deploy.sh; attempting inline restart of previous image"

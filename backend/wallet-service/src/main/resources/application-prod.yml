@@ -34,11 +34,15 @@ internal:
 
 management:
   endpoints:
+    access:
+      default: unrestricted
     web:
+      base-path: /actuator
       exposure:
         include: health
   endpoint:
     health:
+      access: unrestricted
       probes:
         enabled: true
 

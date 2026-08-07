@@ -83,11 +83,15 @@ logging:
 
 management:
   endpoints:
+    access:
+      default: unrestricted
     web:
+      base-path: /actuator
       exposure:
         include: health,gateway
   endpoint:
     health:
+      access: unrestricted
       probes:
         enabled: true
 

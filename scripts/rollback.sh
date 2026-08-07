@@ -53,7 +53,8 @@ while [[ $# -gt 0 ]]; do
     --port) CONTAINER_PORT="${2:?}"; shift 2 ;;
     --health) HEALTH_ENDPOINT="${2:?}"; shift 2 ;;
     --image) IMAGE_OVERRIDE="${2:?}"; shift 2 ;;
-    --extra-env) EXTRA_ENV="${2:?}"; shift 2 ;;
+    # Allow empty EXTRA_ENV (deploy may pass nothing); ${2:?} treats "" as unset.
+    --extra-env) EXTRA_ENV="${2:-}"; shift 2 ;;
     --env-file) ENV_FILE="${2:?}"; shift 2 ;;
     --state-dir) STATE_DIR="${2:?}"; shift 2 ;;
     --require-2xx) REQUIRE_2XX="${2:?}"; shift 2 ;;
