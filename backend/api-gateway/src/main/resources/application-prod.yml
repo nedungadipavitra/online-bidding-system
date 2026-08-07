@@ -85,7 +85,11 @@ management:
   endpoints:
     web:
       exposure:
-        include: gateway
+        include: health,gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true
 
 # aws.region comes from Parameter Store /obs/prod/aws/region (via /obs/prod/ import).
 # Do not hardcode here — it would override SSM.

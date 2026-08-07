@@ -1,8 +1,6 @@
 # -----------------------------------------------------------------------------
 # api-gateway — multi-stage production image
-# Port: 8080. Only Spring Boot service in this monorepo that ships actuator.
-# management.endpoints.web.exposure.include=gateway → probe /actuator/gateway.
-# (health endpoint is not currently exposed by application.yml — do not use it.)
+# Port: 8080. Health: GET /actuator/health (spring-boot-starter-actuator).
 # -----------------------------------------------------------------------------
 
 FROM maven:3.9.9-eclipse-temurin-21-jammy AS build
@@ -36,6 +34,6 @@ EXPOSE 8080
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD curl -fsS "http://127.0.0.1:8080/actuator/gateway" >/dev/null || exit 1
+    CMD curl -fsS "http://127.0.0.1:8080/actuator/health" >/dev/null || exit 1
 
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

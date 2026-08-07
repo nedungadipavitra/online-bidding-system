@@ -36,3 +36,13 @@ spring:
 s3:
   bucket: ${s3.bucket}
   base-path: ${s3.base-path}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true

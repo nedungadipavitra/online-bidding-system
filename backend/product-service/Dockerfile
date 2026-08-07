@@ -1,10 +1,7 @@
 # -----------------------------------------------------------------------------
 # product-service — multi-stage production image
 # Stack: Spring Boot 4.1 / Java 21. Config: AWS Parameter Store (/obs/prod/), S3.
-# Port: 8082 (server.port in application.properties / application-prod.yml)
-#
-# Health note: this service does NOT depend on spring-boot-starter-actuator.
-# We probe GET /products (real public API) so the check implies DB + app wiring.
+# Port: 8082. Health: GET /actuator/health (spring-boot-starter-actuator).
 # -----------------------------------------------------------------------------
 
 # ---- Build stage: compile the fat JAR inside the image (Jenkins also runs tests) ----
@@ -50,7 +47,7 @@ ENV SPRING_PROFILES_ACTIVE=prod \
 
 # start-period covers Spring Boot + Parameter Store + RDS connectivity on cold start.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
-    CMD curl -fsS "http://127.0.0.1:8082/products" >/dev/null || exit 1
+    CMD curl -fsS "http://127.0.0.1:8082/actuator/health" >/dev/null || exit 1
 
 # exec keeps PID 1 as the JVM so SIGTERM reaches Spring Boot for graceful shutdown.
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

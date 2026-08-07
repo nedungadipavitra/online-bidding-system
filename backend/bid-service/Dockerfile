@@ -35,6 +35,6 @@ EXPOSE 8085
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
-    CMD curl -fsS "http://127.0.0.1:8085/bids" >/dev/null || exit 1
+    CMD curl -fsS "http://127.0.0.1:8085/actuator/health" >/dev/null || exit 1
 
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

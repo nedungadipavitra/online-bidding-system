@@ -25,16 +25,16 @@ pipeline {
 
   parameters {
     string(name: 'ECR_REPO', defaultValue: 'obs/api-gateway', description: 'ECR repo name (no registry host)')
-    string(name: 'EC2_HOST', defaultValue: '172.31.0.150', description: 'obs-edge-instance private IP (gateway+FE later); blank → credential obs-ec2-host')
+    string(name: 'EC2_HOST', defaultValue: '3.6.164.251', description: 'obs-edge-instance EIP (gateway+FE later); blank → credential obs-ec2-host')
     string(name: 'CONTAINER_PORT', defaultValue: '8080', description: 'api-gateway port')
-    string(name: 'HEALTH_ENDPOINT', defaultValue: '/actuator/gateway', description: 'Health path on EC2 loopback')
+    string(name: 'HEALTH_ENDPOINT', defaultValue: '/actuator/health', description: 'Health path on EC2 loopback')
     string(name: 'EC2_USER', defaultValue: 'ubuntu', description: 'SSH user (Ubuntu AMI)')
     string(name: 'AWS_REGION', defaultValue: 'ap-south-1', description: 'ECR region')
     string(name: 'EXTRA_ENV', defaultValue: '', description: 'Optional KEY=V,KEY2=V2 docker -e pairs (no secrets)')
     string(name: 'REMOTE_ENV_FILE', defaultValue: '', description: 'Optional env-file path already on EC2 (blank = none; prod uses SSM)')
     booleanParam(name: 'SKIP_TESTS', defaultValue: false, description: 'Skip unit tests (emergency)')
     booleanParam(name: 'PERFORM_ROLLBACK_ONLY', defaultValue: false, description: 'Only rollback on EC2')
-    booleanParam(name: 'REQUIRE_2XX_HEALTH', defaultValue: true, description: 'Health requires 2xx/3xx')
+    booleanParam(name: 'REQUIRE_2XX_HEALTH', defaultValue: true, description: 'Health requires 2xx/3xx (/actuator/health returns 200 when UP)')
   }
 
   environment {
