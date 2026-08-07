@@ -75,9 +75,8 @@ jwt:
 
 gateway:
   public-endpoints: POST:/auth/login,POST:/auth/register,POST:/auth/refresh,POST:/auth/logout,POST:/login,POST:/register,GET:/products/**,GET:/categories/**,GET:/ws,GET:/ws/**
-  # Do NOT set allowed-origins: ${gateway.allowed-origins} here — that is circular when SSM is missing.
-  # Prefer Parameter Store /obs/gateway/gateway/allowed-origins → gateway.allowed-origins.
-  # Fallback: application.yml GATEWAY_ALLOWED_ORIGINS / CorsConfig default (localhost:5173).
+  # From Parameter Store /obs/gateway/gateway/allowed-origins (must exist or this self-ref is circular).
+  allowed-origins: ${gateway.allowed-origins}
 
 logging:
   level:
