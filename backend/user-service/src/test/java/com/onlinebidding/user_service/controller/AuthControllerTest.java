@@ -8,18 +8,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onlinebidding.user_service.dto.LoginRequest;
@@ -30,36 +30,30 @@ import com.onlinebidding.user_service.dto.RefreshTokenResponse;
 import com.onlinebidding.user_service.dto.RegisterRequest;
 import com.onlinebidding.user_service.dto.RegisterResponse;
 import com.onlinebidding.user_service.exception.EmailAlreadyExistsException;
+import com.onlinebidding.user_service.exception.GlobalExceptionHandler;
 import com.onlinebidding.user_service.exception.InvalidRefreshTokenException;
 import com.onlinebidding.user_service.exception.RefreshTokenExpiredException;
 import com.onlinebidding.user_service.exception.RefreshTokenRevokedException;
-import com.onlinebidding.user_service.security.CustomUserDetailsService;
-import com.onlinebidding.user_service.security.JwtService;
 import com.onlinebidding.user_service.service.AuthService;
 
-@SpringBootTest
+/**
+ * Standalone MVC tests — no Spring context / JPA. Full {@code @SpringBootTest}
+ * needs MySQL and fails in Jenkins with Communications link failure.
+ */
+@ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 
     private MockMvc mockMvc;
 
-    @Autowired
-    private WebApplicationContext webApplicationContext;
-
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @MockitoBean
+    @Mock
     private AuthService authService;
-
-    @MockitoBean
-    private JwtService jwtService;
-
-    @MockitoBean
-    private CustomUserDetailsService customUserDetailsService;
 
     @BeforeEach
     void setUp() {
-        this.mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
-                .apply(springSecurity())
+        mockMvc = MockMvcBuilders.standaloneSetup(new AuthController(authService))
+                .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
 
@@ -174,9 +168,9 @@ class AuthControllerTest {
     // --- ME TESTS ---
 
     @Test
-    @WithMockUser(username = "john@example.com")
     void me_success() throws Exception {
-        mockMvc.perform(get("/auth/me"))
+        mockMvc.perform(get("/auth/me")
+                .principal(new UsernamePasswordAuthenticationToken("john@example.com", "n/a", List.of())))
                 .andExpect(status().isOk())
                 .andExpect(content().string("john@example.com"));
     }

@@ -1,0 +1,39 @@
+# Local Jenkins for OBS — Docker Desktop friendly.
+# UI: http://localhost:9090
+#
+#   docker compose -f ci/jenkins/docker-compose.yml up -d --build
+#
+# IMPORTANT (Pipeline job): uncheck "Lightweight checkout" if you still see
+#   fatal: not in a git directory
+# while loading Pipeline script from SCM.
+
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: jenkins-jenkins:latest
+    container_name: obs-jenkins
+    # Start as root only to fix docker.sock + home ownership; then drop to jenkins.
+    user: root
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        if [ -S /var/run/docker.sock ]; then chmod 666 /var/run/docker.sock || true; fi
+        if [ -d /var/jenkins_home ]; then chown -R jenkins:jenkins /var/jenkins_home || true; fi
+        # Clear broken lightweight-checkout caches (common after root / permission churn)
+        rm -rf /var/jenkins_home/caches/* 2>/dev/null || true
+        exec runuser -u jenkins -- /usr/bin/tini -- /usr/local/bin/jenkins.sh
+    ports:
+      - "9090:8080"
+      - "50000:50000"
+    environment:
+      JAVA_OPTS: "-Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true"
+    volumes:
+      - obs_jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+volumes:
+  obs_jenkins_home:

@@ -1,79 +1,82 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: api-gateway
+
+  # Prod only (Docker/Jenkins: SPRING_PROFILES_ACTIVE=prod).
+  # Gateway is DB-less. /obs/prod/ can hold shared jwt.secret; /obs/gateway/ holds routes/origins.
+  config:
+    import:
+      - aws-parameterstore:/obs/prod/
+      - aws-parameterstore:/obs/gateway/
+
   cloud:
     gateway:
       server:
         webflux:
-          default-filters:
-            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
           routes:
             - id: user-service-register-compat
-              uri: ${USER_SERVICE_URL:http://localhost:8081}
+              uri: ${user.service-url}
               predicates:
                 - Path=/register
               filters:
                 - RewritePath=/register, /auth/register
             - id: user-service-login-compat
-              uri: ${USER_SERVICE_URL:http://localhost:8081}
+              uri: ${user.service-url}
               predicates:
                 - Path=/login
               filters:
                 - RewritePath=/login, /auth/login
             - id: user-service-auth
-              uri: ${USER_SERVICE_URL:http://localhost:8081}
+              uri: ${user.service-url}
               predicates:
                 - Path=/auth/**
             - id: user-service-users
-              uri: ${USER_SERVICE_URL:http://localhost:8081}
+              uri: ${user.service-url}
               predicates:
                 - Path=/users/**
             - id: product-service-products
-              uri: ${PRODUCT_SERVICE_URL:http://localhost:8082}
+              uri: ${product.service-url}
               predicates:
                 - Path=/products/**
             - id: product-service-categories
-              uri: ${PRODUCT_SERVICE_URL:http://localhost:8082}
+              uri: ${product.service-url}
               predicates:
                 - Path=/categories/**
             - id: wallet-service-wallets
-              uri: ${WALLET_SERVICE_URL:http://localhost:8083}
+              uri: ${wallet.service-url}
               predicates:
                 - Path=/wallets/**
             - id: wallet-service-transactions
-              uri: ${WALLET_SERVICE_URL:http://localhost:8083}
+              uri: ${wallet.service-url}
               predicates:
                 - Path=/transactions/**
             - id: order-service
-              uri: ${ORDER_SERVICE_URL:http://localhost:8084}
+              uri: ${order.service-url}
               predicates:
                 - Path=/orders/**
             - id: bid-service
-              uri: ${BID_SERVICE_URL:http://localhost:8085}
+              uri: ${bid.service-url}
               predicates:
                 - Path=/bids/**
-            # Native WebSocket clients connect to the exact /ws endpoint.
             - id: bid-service-websocket
-              uri: ${BID_WEBSOCKET_URL:ws://localhost:8085}
+              uri: ${bid.websocket-url}
               predicates:
                 - Path=/ws
-            # SockJS uses ordinary HTTP requests such as /ws/info and /ws/{session}/xhr.
-            # Keep this route separate from the native WebSocket route so both transports
-            # can reach the bid service through the gateway.
             - id: bid-service-sockjs
-              uri: ${BID_SERVICE_URL:http://localhost:8085}
+              uri: ${bid.service-url}
               predicates:
                 - Path=/ws/**
 
-server:
-  port: 8080
-
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${jwt.secret}
 
 gateway:
   public-endpoints: POST:/auth/login,POST:/auth/register,POST:/auth/refresh,POST:/auth/logout,POST:/login,POST:/register,GET:/products/**,GET:/categories/**,GET:/ws,GET:/ws/**
-  allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  # From Parameter Store /obs/gateway/gateway/allowed-origins (must exist or this self-ref is circular).
+  allowed-origins: ${gateway.allowed-origins}
 
 logging:
   level:
@@ -92,3 +95,6 @@ management:
       access: unrestricted
       probes:
         enabled: true
+
+# aws.region comes from Parameter Store /obs/prod/aws/region (via /obs/prod/ import).
+# Do not hardcode here — it would override SSM.

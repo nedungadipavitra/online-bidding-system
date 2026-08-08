@@ -32,6 +32,11 @@ public class RouteValidator {
         String requestPath = request.getURI().getPath();
         String requestMethod = request.getMethod().name();
 
+        // Actuator probes (Jenkins / Docker HEALTHCHECK) must not require JWT.
+        if ("/actuator".equals(requestPath) || requestPath.startsWith("/actuator/")) {
+            return false;
+        }
+
         // The initial WebSocket/SockJS handshake does not carry the STOMP
         // Authorization header. Authentication is performed by the bid
         // service when it receives the authenticated STOMP CONNECT frame.

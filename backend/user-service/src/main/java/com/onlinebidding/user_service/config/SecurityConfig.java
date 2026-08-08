@@ -74,6 +74,7 @@ public class SecurityConfig {
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/auth/**").permitAll()
+						.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 						.requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 						.anyRequest().authenticated())
 				.authenticationProvider(authenticationProvider());

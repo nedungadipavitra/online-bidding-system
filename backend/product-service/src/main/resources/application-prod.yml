@@ -1,0 +1,52 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: product-service
+
+  datasource:
+    # Shared RDS obs-db: host/port/user/pass from /obs/prod/; schema is product-specific.
+    url: jdbc:mysql://${db.host}:${db.port}/online_bidding?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${db.username}
+    password: ${db.password}
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+
+  # Required only for prod (Docker/Jenkins deploy sets SPRING_PROFILES_ACTIVE=prod).
+  # /obs/prod/ → shared db.* plus s3.bucket / s3.base-path (no separate db.name param).
+  # Unit tests use default profile and must NOT hit Parameter Store.
+  config:
+    import:
+      - aws-parameterstore:/obs/prod/
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# aws.region comes from Parameter Store /obs/prod/aws/region (via /obs/prod/ import).
+# Do not hardcode here — it would override SSM.
+
+s3:
+  bucket: ${s3.bucket}
+  base-path: ${s3.base-path}
+
+management:
+  endpoints:
+    access:
+      default: unrestricted
+    web:
+      base-path: /actuator
+      exposure:
+        include: health
+  endpoint:
+    health:
+      access: unrestricted
+      probes:
+        enabled: true

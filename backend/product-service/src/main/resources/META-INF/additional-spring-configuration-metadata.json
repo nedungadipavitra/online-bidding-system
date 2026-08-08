@@ -1,5 +1,22 @@
-{"properties": [{
-  "name": "spring.jpa.hibernate.defer-datasource-initialization",
-  "type": "java.lang.String",
-  "description": "A description for 'spring.jpa.hibernate.defer-datasource-initialization'"
-}]}
+{"properties": [
+  {
+    "name": "spring.jpa.hibernate.defer-datasource-initialization",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.jpa.hibernate.defer-datasource-initialization'"
+  },
+  {
+    "name": "aws.region",
+    "type": "java.lang.String",
+    "description": "A description for 'aws.region'"
+  },
+  {
+    "name": "s3.bucket",
+    "type": "java.lang.String",
+    "description": "A description for 's3.bucket'"
+  },
+  {
+    "name": "s3.base-path",
+    "type": "java.lang.String",
+    "description": "A description for 's3.base-path'"
+  }
+]}

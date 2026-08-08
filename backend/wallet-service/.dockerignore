@@ -1,0 +1,8 @@
+target/
+.git
+.idea
+.vscode
+*.iml
+*.tar
+*.zip
+*.log
