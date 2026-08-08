@@ -1,5 +1,6 @@
 package com.onlinebidding.user_service.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,7 +22,7 @@ import com.onlinebidding.user_service.security.CustomUserDetailsService;
 import com.onlinebidding.user_service.security.JwtAuthenticationFilter;
 
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,6 +32,9 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 	private final CustomUserDetailsService customUserDetailsService;
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+	@Value("${cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}")
+	private List<String> allowedOrigins;
 
 	@Bean
 	PasswordEncoder passwordEncoder() {
@@ -55,16 +59,16 @@ public class SecurityConfig {
 	}
 
 	@Bean
-    CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Collections.singletonList("http://localhost:5173"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Origin", "Accept", "X-Requested-With"));
-        configuration.setAllowCredentials(true);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+	CorsConfigurationSource corsConfigurationSource() {
+		CorsConfiguration configuration = new CorsConfiguration();
+		configuration.setAllowedOrigins(allowedOrigins);
+		configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+		configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Origin", "Accept", "X-Requested-With"));
+		configuration.setAllowCredentials(true);
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/**", configuration);
+		return source;
+	}
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
