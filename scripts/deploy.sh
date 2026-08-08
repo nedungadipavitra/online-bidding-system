@@ -26,6 +26,8 @@ CONTAINER_PORT="8082"
 HEALTH_ENDPOINT="/products"
 HEALTH_RETRIES=20
 HEALTH_INTERVAL_SEC=6
+# Seconds to wait after container start before the first health probe (0 = probe immediately).
+HEALTH_INITIAL_DELAY_SEC=0
 # Comma-separated KEY=VALUE pairs appended as docker -e flags (no secrets in logs if you avoid printing).
 EXTRA_ENV=""
 # Optional path to an env-file already present on the EC2 host (never committed to git).
@@ -52,6 +54,7 @@ Options:
   --health PATH              HTTP path on localhost for post-deploy check (default: /products)
   --health-retries N         Attempts before rollback (default: 20)
   --health-interval SEC      Sleep between attempts (default: 6)
+  --health-initial-delay SEC Sleep after container start before first probe (default: 0)
   --extra-env "K=V,K2=V2"    Additional -e environment variables
   --env-file PATH            docker --env-file on the host (DB secrets, etc.)
   --state-dir PATH           Directory for previous-image bookkeeping
@@ -71,6 +74,7 @@ while [[ $# -gt 0 ]]; do
     --health) HEALTH_ENDPOINT="${2:?}"; shift 2 ;;
     --health-retries) HEALTH_RETRIES="${2:?}"; shift 2 ;;
     --health-interval) HEALTH_INTERVAL_SEC="${2:?}"; shift 2 ;;
+    --health-initial-delay) HEALTH_INITIAL_DELAY_SEC="${2:?}"; shift 2 ;;
     --extra-env) EXTRA_ENV="${2:?}"; shift 2 ;;
     --env-file) ENV_FILE="${2:?}"; shift 2 ;;
     --state-dir) STATE_DIR="${2:?}"; shift 2 ;;
@@ -82,6 +86,7 @@ done
 
 [[ -n "$IMAGE" ]] || die "--image is required"
 [[ "$CONTAINER_PORT" =~ ^[0-9]+$ ]] || die "--port must be numeric"
+[[ "$HEALTH_INITIAL_DELAY_SEC" =~ ^[0-9]+$ ]] || die "--health-initial-delay must be numeric"
 command -v docker >/dev/null 2>&1 || die "docker is not installed or not on PATH"
 command -v curl >/dev/null 2>&1 || die "curl is required for health checks"
 
@@ -155,6 +160,10 @@ docker run -d "${RUN_ARGS[@]}" "$IMAGE"
 printf '%s\n' "$IMAGE" >"$CURRENT_FILE"
 
 health_url="http://127.0.0.1:${CONTAINER_PORT}${HEALTH_ENDPOINT}"
+if (( HEALTH_INITIAL_DELAY_SEC > 0 )); then
+  log "Initial health delay: ${HEALTH_INITIAL_DELAY_SEC}s before first probe"
+  sleep "$HEALTH_INITIAL_DELAY_SEC"
+fi
 log "Waiting for health: ${health_url} (retries=${HEALTH_RETRIES}, interval=${HEALTH_INTERVAL_SEC}s)"
 
 attempt=1

@@ -273,6 +273,7 @@ pipeline {
                       --image '${deployImage}' \\
                       --port '${params.CONTAINER_PORT}' \\
                       --health '${params.HEALTH_ENDPOINT}' \\
+                      --health-initial-delay 10 \\
                       --require-2xx '${require2xx}' \\
                       \$EXTRA_ARGS"
                   """
