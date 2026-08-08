@@ -32,7 +32,9 @@ USER app
 
 EXPOSE 8085
 
-ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+# Auction window checks use LocalDateTime.now() — align with India form times (IST).
+ENV TZ=Asia/Kolkata \
+    JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Duser.timezone=Asia/Kolkata"
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
     CMD curl -fsS "http://127.0.0.1:8085/actuator/health" >/dev/null || exit 1

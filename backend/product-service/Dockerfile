@@ -41,9 +41,11 @@ EXPOSE 8082
 
 # prod profile picks up application-prod.yml; Parameter Store import remains active.
 # MaxRAMPercentage lets the JVM use most of the container memory limit instead of host heuristics.
+# TZ / user.timezone=Asia/Kolkata: auction start/end are LocalDateTime matching India form input.
 ENV SPRING_PROFILES_ACTIVE=prod \
-    JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0" \
-    AWS_REGION=ap-south-1
+    AWS_REGION=ap-south-1 \
+    TZ=Asia/Kolkata \
+    JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Duser.timezone=Asia/Kolkata"
 
 # start-period covers Spring Boot + Parameter Store + RDS connectivity on cold start.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
