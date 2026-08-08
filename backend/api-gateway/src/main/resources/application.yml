@@ -31,27 +31,28 @@ spring:
             - id: product-service-products
               uri: ${PRODUCT_SERVICE_URL:http://localhost:8082}
               predicates:
-                - Path=/products/**
+                # Include exact /products (list/create/PATCH) — /** alone may not match it.
+                - Path=/products,/products/**
             - id: product-service-categories
               uri: ${PRODUCT_SERVICE_URL:http://localhost:8082}
               predicates:
-                - Path=/categories/**
+                - Path=/categories,/categories/**
             - id: wallet-service-wallets
               uri: ${WALLET_SERVICE_URL:http://localhost:8083}
               predicates:
-                - Path=/wallets/**
+                - Path=/wallets,/wallets/**
             - id: wallet-service-transactions
               uri: ${WALLET_SERVICE_URL:http://localhost:8083}
               predicates:
-                - Path=/transactions/**
+                - Path=/transactions,/transactions/**
             - id: order-service
               uri: ${ORDER_SERVICE_URL:http://localhost:8084}
               predicates:
-                - Path=/orders/**
+                - Path=/orders,/orders/**
             - id: bid-service
               uri: ${BID_SERVICE_URL:http://localhost:8085}
               predicates:
-                - Path=/bids/**
+                - Path=/bids,/bids/**
             # Native WebSocket clients connect to the exact /ws endpoint.
             - id: bid-service-websocket
               uri: ${BID_WEBSOCKET_URL:ws://localhost:8085}
@@ -72,7 +73,7 @@ jwt:
   secret: ${JWT_SECRET}
 
 gateway:
-  public-endpoints: POST:/auth/login,POST:/auth/register,POST:/auth/refresh,POST:/auth/logout,POST:/login,POST:/register,GET:/products/**,GET:/categories/**,GET:/ws,GET:/ws/**
+  public-endpoints: POST:/auth/login,POST:/auth/register,POST:/auth/refresh,POST:/auth/logout,POST:/login,POST:/register,GET:/products,GET:/products/**,GET:/categories,GET:/categories/**,GET:/ws,GET:/ws/**
   allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
 
 logging:

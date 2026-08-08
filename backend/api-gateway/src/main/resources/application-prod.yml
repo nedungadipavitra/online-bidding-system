@@ -40,27 +40,28 @@ spring:
             - id: product-service-products
               uri: ${product.service-url}
               predicates:
-                - Path=/products/**
+                # Include exact /products (list/create/PATCH) — /** alone may not match it.
+                - Path=/products,/products/**
             - id: product-service-categories
               uri: ${product.service-url}
               predicates:
-                - Path=/categories/**
+                - Path=/categories,/categories/**
             - id: wallet-service-wallets
               uri: ${wallet.service-url}
               predicates:
-                - Path=/wallets/**
+                - Path=/wallets,/wallets/**
             - id: wallet-service-transactions
               uri: ${wallet.service-url}
               predicates:
-                - Path=/transactions/**
+                - Path=/transactions,/transactions/**
             - id: order-service
               uri: ${order.service-url}
               predicates:
-                - Path=/orders/**
+                - Path=/orders,/orders/**
             - id: bid-service
               uri: ${bid.service-url}
               predicates:
-                - Path=/bids/**
+                - Path=/bids,/bids/**
             - id: bid-service-websocket
               uri: ${bid.websocket-url}
               predicates:
@@ -74,7 +75,7 @@ jwt:
   secret: ${jwt.secret}
 
 gateway:
-  public-endpoints: POST:/auth/login,POST:/auth/register,POST:/auth/refresh,POST:/auth/logout,POST:/login,POST:/register,GET:/products/**,GET:/categories/**,GET:/ws,GET:/ws/**
+  public-endpoints: POST:/auth/login,POST:/auth/register,POST:/auth/refresh,POST:/auth/logout,POST:/login,POST:/register,GET:/products,GET:/products/**,GET:/categories,GET:/categories/**,GET:/ws,GET:/ws/**
   # From Parameter Store /obs/gateway/gateway/allowed-origins (must exist or this self-ref is circular).
   allowed-origins: ${gateway.allowed-origins}
 
