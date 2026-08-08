@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,12 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class BidServiceImpl implements BidService {
+
+    /**
+     * Auction start/end are LocalDateTime wall-clock values from India datetime-local forms.
+     * Compare against Asia/Kolkata explicitly — do not rely on container/JVM default TZ.
+     */
+    private static final ZoneId AUCTION_ZONE = ZoneId.of("Asia/Kolkata");
 
     private final BidRepository bidRepository;
     private final RestTemplate restTemplate;
@@ -66,7 +73,7 @@ public class BidServiceImpl implements BidService {
         if (!"ACTIVE".equalsIgnoreCase(product.getStatus())) {
             throw new IllegalArgumentException("This auction is not active");
         }
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(AUCTION_ZONE);
         if (product.getAuctionStartTime() != null && now.isBefore(product.getAuctionStartTime())) {
             throw new IllegalArgumentException("Bidding has not started yet");
         }
@@ -91,7 +98,7 @@ public class BidServiceImpl implements BidService {
                 .bidderId(bidDto.getBidderId())
                 .bidderName(bidDto.getBidderName() != null ? bidDto.getBidderName() : "Anonymous")
                 .amount(bidDto.getAmount())
-                .bidTime(bidDto.getBidTime() != null ? bidDto.getBidTime() : LocalDateTime.now())
+                .bidTime(bidDto.getBidTime() != null ? bidDto.getBidTime() : LocalDateTime.now(AUCTION_ZONE))
                 .build();
 
         Bid savedBid = bidRepository.save(bid);

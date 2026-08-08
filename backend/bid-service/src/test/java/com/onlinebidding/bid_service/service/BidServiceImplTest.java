@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -110,6 +111,24 @@ class BidServiceImplTest {
     }
 
     @Test
+    void placeBid_rejectsBeforeAuctionStartInIndiaZone() {
+        ProductSnapshot product = activeProduct(9L, 20L);
+        product.setAuctionStartTime(LocalDateTime.now(AUCTION_ZONE).plusHours(2));
+        when(restTemplate.getForObject("http://product/products/9", ProductSnapshot.class))
+                .thenReturn(product);
+
+        assertThatThrownBy(() -> bidService.placeBid(BidDto.builder()
+                .auctionId(9L)
+                .bidderId(11L)
+                .amount(new BigDecimal("75.00"))
+                .build()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Bidding has not started yet");
+
+        verify(restTemplate, never()).postForEntity(any(), any(), eq(Void.class));
+    }
+
+    @Test
     void getHighestBidsForAuctions_returnsOneHighestBidPerAuction() {
         Bid auctionOneHighest = bid(1L, 90L, "90.00");
         Bid auctionTwoHighest = bid(2L, 70L, "70.00");
@@ -124,12 +143,15 @@ class BidServiceImplTest {
         assertThat(highest.get(2L).getAmount()).isEqualByComparingTo("70.00");
     }
 
+    private static final ZoneId AUCTION_ZONE = ZoneId.of("Asia/Kolkata");
+
     private ProductSnapshot activeProduct(Long productId, Long sellerId) {
         ProductSnapshot product = new ProductSnapshot();
         product.setProductId(productId);
         product.setSellerId(sellerId);
         product.setStatus("ACTIVE");
-        product.setAuctionEndTime(LocalDateTime.now().plusHours(1));
+        product.setAuctionStartTime(LocalDateTime.now(AUCTION_ZONE).minusMinutes(5));
+        product.setAuctionEndTime(LocalDateTime.now(AUCTION_ZONE).plusHours(1));
         return product;
     }
 
@@ -140,7 +162,7 @@ class BidServiceImplTest {
                 .bidderId(bidderId)
                 .bidderName("Buyer " + bidderId)
                 .amount(new BigDecimal(amount))
-                .bidTime(LocalDateTime.now())
+                .bidTime(LocalDateTime.now(AUCTION_ZONE))
                 .build();
     }
 }
