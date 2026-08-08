@@ -23,7 +23,7 @@ spring:
 
   # Prod only (Docker/Jenkins: SPRING_PROFILES_ACTIVE=prod).
   # /obs/prod/  → shared db.host, db.port, db.username, db.password
-  # /obs/user/  → jwt.secret, wallet.*, cors.allowed-origins (no db.* duplicates)
+  # /obs/user/  → jwt.secret, wallet.*, cors.allowed-origins (no db.* duplicates; no yaml self-ref)
   config:
     import:
       - aws-parameterstore:/obs/prod/
@@ -38,9 +38,9 @@ wallet:
   service-url: ${wallet.service-url}
   internal-token: ${wallet.internal-token}
 
-# From Parameter Store /obs/user/cors/allowed-origins (must exist or this self-ref fails).
-cors:
-  allowed-origins: ${cors.allowed-origins}
+# cors.allowed-origins comes from Parameter Store /obs/user/cors/allowed-origins
+# (via /obs/user/ import). Do NOT self-ref ${cors.allowed-origins} here — that
+# causes Circular placeholder reference and prevents the app from starting.
 
 management:
   endpoints:
