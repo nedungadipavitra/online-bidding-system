@@ -27,7 +27,7 @@ Add Product never uploaded to S3. The UI base64-encoded the image into `imageUrl
 ### Fork commit
 | Date | SHA | Message | Monorepo |
 |------|-----|---------|----------|
-| 2026-08-09 | _pending_ | Upload product images via multipart S3 endpoint | Pending |
+| 2026-08-09 | `7a496b0` | Upload product images via multipart S3 endpoint | Pending |
 
 ### Re-apply on monorepo later
 1. Cherry-pick the SHA above from `obs/aws-deploy-changes` (or copy the three file diffs).
