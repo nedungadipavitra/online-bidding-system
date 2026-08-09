@@ -1,133 +1,218 @@
 # Online Bidding System
 
-A cloud-ready, real-time online auction platform built using **Spring Boot Microservices**, **React.js**, **MySQL**, **Docker**, **Kubernetes**, **AWS**, and **Jenkins**. The system enables secure online auctions with live bidding, role-based access control, wallet management, delivery assignment, and cloud-native deployment.
+A cloud-ready, real-time online auction platform built with **Spring Boot microservices**, **React (Vite)**, **MySQL / AWS RDS**, **Docker**, **AWS (EC2, ECR, S3, Parameter Store)**, and **Jenkins CI/CD**.
+
+The system supports secure auctions with live bidding, role-based access, wallet management, delivery assignment, and production deployment on AWS.
 
 ---
 
 ## Features
 
-- JWT Authentication & Authorization
-- Role-Based Access (Admin, Seller, Buyer, Delivery Partner)
-- Real-Time Live Bidding using WebSockets
-- Product & Category Management
-- Wallet Management
-- Order Management
-- Delivery Assignment Workflow
-- AWS S3 Image Storage
-- MySQL / AWS RDS Integration
-- Dockerized Microservices
-- Kubernetes Deployment
-- Jenkins CI/CD Pipeline
-- Atlassian Jira for Project Management
-- AI-Ready Architecture (Python Microservice)
+- JWT authentication and authorization (access + refresh tokens)
+- Role-based access: Admin, Seller, Buyer, Delivery Partner
+- Real-time live bidding over WebSockets (STOMP via API gateway `/ws`)
+- Product and category management
+- Wallet management and trusted internal settlement
+- Order management and delivery assignment
+- AWS S3 product images
+- MySQL locally / AWS RDS in production
+- Dockerized services with per-service Jenkins pipelines
+- AWS Parameter Store for production secrets and service URLs
 
 ---
 
-## Repository Structure
+## Repository structure
 
 ```
-online-bidding-system
-│
-├── frontend/
-│
+online-bidding-system-monorepo/
+├── frontend/                 # React + Vite SPA
 ├── backend/
-│   ├── api-gateway
-│   ├── user-service
-│   ├── product-service
-│   ├── wallet-service
-│   ├── bid-service
-│   └── order-service
-│
-├── kubernetes/
-├── docs/
-├── docker-compose.yml
-├── README.md
+│   ├── api-gateway/          # Spring Cloud Gateway (:8080)
+│   ├── user-service/         # Auth + users (:8081)
+│   ├── product-service/      # Products + categories (:8082)
+│   ├── wallet-service/       # Wallets + transactions (:8083)
+│   ├── order-service/        # Orders (:8084)
+│   └── bid-service/          # Bids + WebSocket (:8085)
+├── ci/jenkins/               # Optional Jenkins Docker Compose on EC2
+├── jenkins/                  # Shared pipeline groovy helpers
+├── scripts/                  # deploy.sh / rollback.sh used on EC2
+├── start-backend.ps1         # Local: start all backend services
+├── Jenkinsfile               # Root pipeline reference (services use their own)
+├── .env.example              # Local env template (copy to .env — never commit .env)
+├── README.md                 # This file — run guide + structure
+├── architecture.md           # Who / what / where / how / why + diagrams
+└── IMPLEMENTATION_NOTES.md   # Feature / architecture change notes
 ```
+
+Browser traffic in production:
+
+- SPA → `http://<edge-eip>/` (port **80**)
+- API / WebSocket → `http://<edge-eip>:8080` (API gateway)
 
 ---
 
-## Technology Stack
+## Technology stack
 
 ### Frontend
 
-- React.js
-- Vite
-- Bootstrap
-- Fetch API through the centralized frontend API client
-- STOMP WebSocket
+- React 19 + Vite
+- React Router, Bootstrap / React-Bootstrap
+- Centralized API client (`frontend/src/api/client.js`) via `VITE_API_BASE_URL`
+- STOMP WebSocket (`@stomp/stompjs`, SockJS) through the gateway
+- `react-toastify` for success/error feedback
 
 ### Backend
 
-- Spring Boot
-- Spring Security
+- Java / Spring Boot
+- Spring Security + JWT
 - Spring Data JPA
 - Spring Cloud Gateway
 - REST APIs
-- WebSocket (STOMP)
-- JWT Authentication
+- WebSocket (STOMP) on bid-service, exposed through the gateway
 
-### Runtime configuration and secrets
+### Data and cloud
 
-Backend services read credentials and security settings from environment variables. Copy [.env.example](.env.example) to `.env` for local reference, or export the variables directly before starting the services. The copied `.env` file is ignored by Git.
+- MySQL (local) / AWS RDS (prod)
+- AWS EC2, ECR, S3, Systems Manager Parameter Store
+- Docker on EC2 hosts
 
-Required variables:
+### DevOps
 
-- `DB_PASSWORD` — MySQL password used by all services.
-- `JWT_SECRET` — Base64-encoded signing key containing at least 32 bytes, shared by the gateway and user service.
-- `WALLET_INTERNAL_TOKEN` — private token used only for trusted wallet settlement and wallet provisioning calls.
+- Jenkins (per-service `Jenkinsfile` under `backend/<service>/` and `frontend/`)
+- Optional Jenkins host setup under `ci/jenkins/`
 
-Service URLs and `GATEWAY_ALLOWED_ORIGINS` can be overridden for deployment environments; local localhost defaults remain available for non-secret settings. Do not use the example placeholder values in production, and restrict direct access to internal service ports.
+---
 
-### Local backend startup
+## Prerequisites (local)
 
-After creating and filling in the root `.env`, start all backend services from PowerShell with:
+- JDK 17+ and Maven on `PATH` (or `MAVEN_HOME`)
+- Node.js 20+ and npm
+- MySQL 8 with databases/schemas expected by each service
+- Git
+
+---
+
+## How to run locally
+
+### 1. Environment
+
+```powershell
+copy .env.example .env
+```
+
+Edit `.env` and set at least:
+
+| Variable | Purpose |
+|----------|---------|
+| `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD` | MySQL |
+| `JWT_SECRET` | Base64 key, ≥ 32 bytes, shared by gateway + user-service |
+| `WALLET_INTERNAL_TOKEN` | Trusted service-to-service wallet calls |
+| `GATEWAY_ALLOWED_ORIGINS` | Browser origins (default Vite: `http://localhost:5173`) |
+
+Do **not** commit `.env`.
+
+### 2. Start backend (all services)
+
+From the repo root:
 
 ```powershell
 .\start-backend.ps1
 ```
 
-The script loads `.env`, opens each backend service in a separate PowerShell window, and starts the API gateway after a short delay. If PowerShell blocks local scripts, run:
+If PowerShell blocks scripts:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start-backend.ps1
 ```
 
-The script uses Maven from `PATH`, `MAVEN_HOME`, or the local Maven distribution previously used for this repository.
+The script loads `.env`, opens each backend service in its own window, and starts the API gateway after a short delay.
 
-### To Stop the Backend
+Default ports:
 
-Paste this command on any powershell window to stop the backend, then manually close all the opened terminals.
+| Service | Port |
+|---------|------|
+| api-gateway | 8080 |
+| user-service | 8081 |
+| product-service | 8082 |
+| wallet-service | 8083 |
+| order-service | 8084 |
+| bid-service | 8085 |
+
+All browser/API calls in local and prod should go through the **gateway** (`http://localhost:8080`), not directly to service ports.
+
+### 3. Start frontend
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open the URL Vite prints (usually `http://localhost:5173`).
+
+Optional: set `VITE_API_BASE_URL` if the gateway is not at `http://localhost:8080`.
+
+Vite is configured to listen on the LAN (`host: true`) so other devices on the same Wi‑Fi can open the app.
+
+### 4. Stop backend
 
 ```powershell
 8080..8085 | % { Get-NetTCPConnection -LocalPort $_ -EA SilentlyContinue | Select -Expand OwningProcess -Unique | % { Stop-Process -Id $_ -Force } }
 ```
 
-### Database
+Then close the leftover PowerShell windows if needed.
 
-- MySQL
-- AWS RDS
+---
 
-### Cloud
+## Recent tech / project changes (high level)
 
-- AWS EC2
-- AWS S3
-- AWS RDS
+- All browser traffic goes through the **API gateway** (REST + WebSocket `/ws`)
+- Central frontend API client + JWT refresh (`VITE_API_BASE_URL`)
+- Real-time highest bid updates over STOMP
+- Admin category/product/user CRUD persisted via backend APIs
+- Local backend startup via `start-backend.ps1` + root `.env`
+- AWS deploy: Jenkins → ECR → EC2, prod profile + Parameter Store
 
-### DevOps
+Deploy architecture (hosts, CI/CD, CORS/IST fixes): [`architecture.md`](architecture.md).
 
-- Docker
-- Kubernetes
-- Jenkins
-- GitHub Actions (optional)
+---
 
-### Project Management
+## Production (AWS) overview
 
-- Atlassian Jira
+Demo edge host (subject to change): Elastic IP **`3.6.164.251`**
 
-### AI Integration
+| Surface | URL |
+|---------|-----|
+| Frontend (nginx) | `http://3.6.164.251/` |
+| API gateway | `http://3.6.164.251:8080` |
 
-- Python FastAPI
-- Google Gemini / OpenAI
+| Host role | Typical containers | Ports |
+|-----------|--------------------|-------|
+| obs-edge | api-gateway + frontend | 8080, 80 |
+| obs-identity | user-service + wallet-service | 8081, 8083 |
+| obs-catalog | product-service | 8082 |
+| obs-fulfillment | order-service + bid-service | 8084, 8085 |
+
+CI/CD pattern per service:
+
+1. Jenkins builds from the service `Jenkinsfile`
+2. Image pushed to ECR (`obs/<service>`)
+3. SSH deploy to the target EC2 (`EC2_HOST`)
+
+Production uses `SPRING_PROFILES_ACTIVE=prod` and Parameter Store (`/obs/prod/`, `/obs/gateway/`, `/obs/user/`, …).
+
+More: [`architecture.md`](architecture.md), [`frontend/README.md`](frontend/README.md).
+
+---
+
+## Team documentation
+
+| Doc | What it covers |
+|-----|----------------|
+| [`README.md`](README.md) (this file) | Folder structure, stack, how to run, short tech/AWS overview |
+| [`architecture.md`](architecture.md) | Who / what / where / how / why + Mermaid diagrams (`aws-deploy-changes`) |
+| [`IMPLEMENTATION_NOTES.md`](IMPLEMENTATION_NOTES.md) | Feature/architecture changes (API client, realtime bids, admin CRUD) |
+| [`frontend/README.md`](frontend/README.md) | Frontend env, local Vite, prod edge / Jenkins notes |
 
 ---
 
@@ -139,34 +224,12 @@ Paste this command on any powershell window to stop the backend, then manually c
 
 ---
 
-## Documentation
+## Future enhancements
 
-- Backend Documentation → `backend/README.md`
-- Frontend Documentation -> `frontend/README.md`
-- Implementation notes -> `IMPLEMENTATION_NOTES.md`
-
----
-
-## Future Enhancements
-
-- AI Price Recommendation
-- AI Chatbot
-- Fraud Detection
-- Smart Product Search
-- Analytics Dashboard
-- Payment Gateway Integration
-
----
-
-## Highlights
-
-- Microservices Architecture
-- Cloud Native Design
-- Event Driven Communication
-- Real-Time WebSocket Updates
-- Secure JWT Authentication
-- CI/CD Automation
-- Production Ready Deployment
+- AI price recommendation / chatbot
+- Fraud detection and smarter search
+- Analytics dashboard
+- Payment gateway integration
 
 ---
 

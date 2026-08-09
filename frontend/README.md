@@ -1,21 +1,57 @@
-# React + Vite
+# Frontend (React + Vite)
+
+SPA for the Online Bidding System. All HTTP and WebSocket traffic goes through the **API gateway**.
+
+## Local development
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+- App: usually `http://localhost:5173`
+- API default: `http://localhost:8080` (override with `VITE_API_BASE_URL`)
+- Dev server listens on the LAN (`host: true` in `vite.config.js`) so phones/other PCs on the same Wi‑Fi can open the app
+
+```powershell
+# optional
+$env:VITE_API_BASE_URL = "http://localhost:8080"
+npm run dev
+```
 
 ## Application configuration
 
-API requests use the gateway URL from `VITE_API_BASE_URL`. If it is not set,
-the frontend uses `http://localhost:8080` for local development.
+| Variable | When | Meaning |
+|----------|------|---------|
+| `VITE_API_BASE_URL` | Build / runtime (Vite) | Gateway base URL; baked in at **build** time for Docker/prod |
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Central client: `src/api/client.js`.
 
-Currently, two official plugins are available:
+## Production (AWS)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Item | Value |
+|------|--------|
+| Image | `frontend/Dockerfile` — Vite build → nginx |
+| Health | `GET /health` |
+| Host | obs-edge Elastic IP (demo: `3.6.164.251`) |
+| Port | **80** (SPA); API remains gateway **:8080** |
+| CI | Jenkins job `obs-frontend`, Script Path `frontend/Jenkinsfile` |
+| ECR | `obs/frontend` |
+| Build arg | `VITE_API_BASE_URL` (demo: `http://3.6.164.251:8080`) |
 
-## React Compiler
+Prod URL: `http://3.6.164.251/`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Scripts
 
-## Expanding the ESLint configuration
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Vite dev server |
+| `npm run build` | Production bundle → `dist/` |
+| `npm run preview` | Preview the production build locally |
+| `npm run lint` | ESLint |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Related docs
+
+- Root [`README.md`](../README.md) — full monorepo run guide and folder structure
+- [`IMPLEMENTATION_NOTES.md`](../IMPLEMENTATION_NOTES.md) — realtime bidding, admin CRUD, API client notes

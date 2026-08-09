@@ -7,4 +7,9 @@ export default defineConfig({
   define: {
     global: "globalThis",
   },
+  server: {
+    // Listen on LAN so phones/other PCs on the same Wi‑Fi can open the app.
+    host: true,
+    port: 5173,
+  },
 });
