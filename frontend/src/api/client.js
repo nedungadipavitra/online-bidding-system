@@ -108,7 +108,12 @@ function redirectToLoginAfterAuthFailure() {
 export async function apiFetch(path, options = {}) {
   const requestHeaders = getAuthHeaders(options.headers);
 
-  if (options.body && !requestHeaders.has("Content-Type")) {
+  // Let the browser set multipart boundary for FormData; only default JSON otherwise.
+  if (
+    options.body &&
+    !(options.body instanceof FormData) &&
+    !requestHeaders.has("Content-Type")
+  ) {
     requestHeaders.set("Content-Type", "application/json");
   }
 

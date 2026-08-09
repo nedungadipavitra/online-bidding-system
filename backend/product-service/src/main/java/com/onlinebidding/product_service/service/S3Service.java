@@ -22,7 +22,10 @@ public class S3Service {
 	private String region;
 
 	public String uploadFile(MultipartFile file, Long productId) {
-		String key = String.format("%s/%d/%s-%s", basePath, productId, UUID.randomUUID(), file.getOriginalFilename());
+		String originalName = file.getOriginalFilename() == null ? "image" : file.getOriginalFilename();
+		String safeName = originalName.replaceAll("[^a-zA-Z0-9._-]", "_");
+		String normalizedBase = basePath == null ? "products" : basePath.replaceAll("^/+|/+$", "");
+		String key = String.format("%s/%d/%s-%s", normalizedBase, productId, UUID.randomUUID(), safeName);
 		try {
 			PutObjectRequest request = PutObjectRequest.builder().bucket(bucket).key(key)
 					.contentType(file.getContentType()).build();
@@ -30,6 +33,8 @@ public class S3Service {
 			return String.format("https://%s.s3.%s.amazonaws.com/%s", bucket, region, key);
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to upload file to S3", e);
+		} catch (RuntimeException e) {
+			throw new RuntimeException("Failed to upload file to S3: " + e.getMessage(), e);
 		}
 	}
 }

@@ -11,7 +11,8 @@ function AddProductForm({ onProductAdded }) {
   const [description, setDescription] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [image, setImage] = useState("");
+  const [imagePreview, setImagePreview] = useState("");
+  const [imageFile, setImageFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,15 +66,17 @@ function AddProductForm({ onProductAdded }) {
       toast.error("Please upload an image file.");
       return;
     }
+    setImageFile(file);
     const reader = new FileReader();
     reader.onload = (e) => {
-      setImage(e.target.result); // Base64 encoding
+      setImagePreview(e.target.result);
     };
     reader.readAsDataURL(file);
   };
 
   const removeImage = () => {
-    setImage("");
+    setImagePreview("");
+    setImageFile(null);
   };
 
   const handleSubmit = async (e) => {
@@ -109,7 +112,7 @@ function AddProductForm({ onProductAdded }) {
         body: JSON.stringify({
           name,
           description,
-          imageUrl: image || "",
+          imageUrl: "",
           basePrice: price,
           auctionStartTime: startTime,
           auctionEndTime: endTime,
@@ -118,23 +121,52 @@ function AddProductForm({ onProductAdded }) {
         })
       });
 
-      if (response.ok) {
-        toast.success("Product added successfully for auction.");
-        // Reset Form
-        setName("");
-        setCategory("");
-        setBasePrice("");
-        setDescription("");
-        setStartTime("");
-        setEndTime("");
-        setImage("");
-
-        // Trigger state reload in parent
-        if (onProductAdded) {
-          onProductAdded();
-        }
-      } else {
+      if (!response.ok) {
         toast.error(await getResponseMessage(response, "Failed to add product."));
+        return;
+      }
+
+      const created = await response.json();
+      const productId = created?.productId;
+
+      if (imageFile && productId) {
+        const formData = new FormData();
+        formData.append("file", imageFile);
+
+        const uploadResponse = await apiFetch(`/products/${productId}/image`, {
+          method: "POST",
+          headers: {
+            Authorization: token ? `Bearer ${token}` : ""
+          },
+          body: formData
+        });
+
+        if (!uploadResponse.ok) {
+          toast.error(
+            await getResponseMessage(
+              uploadResponse,
+              "Product created, but image upload to S3 failed."
+            )
+          );
+          if (onProductAdded) {
+            onProductAdded();
+          }
+          return;
+        }
+      }
+
+      toast.success("Product added successfully for auction.");
+      setName("");
+      setCategory("");
+      setBasePrice("");
+      setDescription("");
+      setStartTime("");
+      setEndTime("");
+      setImagePreview("");
+      setImageFile(null);
+
+      if (onProductAdded) {
+        onProductAdded();
       }
     } catch (error) {
       console.error("Add product error:", error);
@@ -262,10 +294,10 @@ function AddProductForm({ onProductAdded }) {
                 onDragLeave={handleDrag}
                 onDrop={handleDrop}
               >
-                {image ? (
+                {imagePreview ? (
                   <div className="d-flex flex-column align-items-center gap-2">
                     <img
-                      src={image}
+                      src={imagePreview}
                       alt="Product Preview"
                       style={{ maxWidth: "120px", maxHeight: "120px", objectFit: "contain", borderRadius: "8px" }}
                     />
